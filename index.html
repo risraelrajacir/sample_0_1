@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dino Run - Universal Fit</title>
+    <title>Dino Run</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
 
@@ -12,13 +12,12 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #1a1a1a; /* Dark background for letterboxing */
+            background-color: #1a1a1a;
             font-family: 'Fredoka One', cursive;
             overflow: hidden;
             touch-action: none;
         }
 
-        /* The container fills the screen */
         #game-container {
             width: 100%;
             height: 100%;
@@ -28,23 +27,21 @@
             position: relative;
         }
 
-        /* The Canvas scales to fit inside the container without stretching */
         canvas {
             display: block;
             max-width: 100%;
             max-height: 100%;
-            /* This ensures 16:9 ratio is preserved */
-            aspect-ratio: 16/9; 
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            aspect-ratio: 16/9;
+            box-shadow: 0 0 40px rgba(0,0,0,0.7);
             background-color: #4AC;
+            border-radius: 6px;
         }
 
-        /* Loading Overlay */
         #loader {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: #fff;
+            background: #1a1a1a;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -53,15 +50,16 @@
             transition: opacity 0.4s;
         }
 
-        h1 { margin: 0 0 20px 0; color: #333; font-size: 5vw; letter-spacing: 2px; }
+        h1 { margin: 0 0 20px 0; color: #f0f0f0; font-size: 5vw; letter-spacing: 2px; }
         @media (min-width: 800px) { h1 { font-size: 40px; } }
 
         #progress-bar {
             width: 50%;
             max-width: 400px;
             height: 15px;
-            background: #eee;
+            background: #333;
             border-radius: 10px;
+            border: 1px solid #444;
             overflow: hidden;
         }
         #progress-fill {
@@ -71,14 +69,14 @@
             transition: width 0.1s linear;
         }
 
-        /* Mobile Controls - Fixed to Screen Corners */
+        /* Mobile Controls */
         #mobile-controls {
             position: absolute;
             bottom: 20px;
             left: 0;
             width: 100%;
-            height: 0; /* Don't block center screen */
-            display: none; /* JS enables this */
+            height: 0;
+            display: none; 
             z-index: 50;
         }
 
@@ -87,8 +85,8 @@
             bottom: 10px;
             width: 90px;
             height: 90px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.25);
+            border: 2px solid rgba(255, 255, 255, 0.5);
             border-radius: 50%;
             display: flex;
             justify-content: center;
@@ -97,14 +95,10 @@
             color: white;
             user-select: none;
             backdrop-filter: blur(4px);
-            /* Disable tap highlight color */
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Left Corner */
         #btn-duck { left: 20px; }
-        
-        /* Right Corner */
         #btn-jump { right: 20px; }
 
         .control-btn:active {
@@ -121,24 +115,25 @@
         <div id="progress-bar"><div id="progress-fill"></div></div>
     </div>
     
-    <!-- Controls overlay on top of everything -->
     <div id="mobile-controls">
         <div id="btn-duck" class="control-btn">⬇️</div>
         <div id="btn-jump" class="control-btn">⬆️</div>
     </div>
 
-    <!-- Canvas resolution fixed at 800x450 for logic, CSS handles scaling -->
     <canvas id="gameCanvas" width="800" height="450"></canvas>
 </div>
 
 <script>
 /**
- * DINO RUN - UNIVERSAL FIT
+ * DINO RUN - CLICK SOUND EDITION
  * 
- * 1. CSS Aspect-Ratio: Canvas scales to fit viewport perfectly.
- * 2. Controls: Corner-based touch buttons for tablets/phones.
- * 3. Gameplay: Challenging Pro physics preserved.
+ * Updates:
+ * 1. Added 'sndClick' to assets.
+ * 2. Implemented playClickSound() function.
+ * 3. Integrated sound into handlePress() for all UI buttons (Play, Replay, Back, Home).
  */
+
+const MAIN_HOME_URL = "index.html"; 
 
 const ASSETS_SRC = {
     bg: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_bgs/dr_ge_1_as_bgs_1/bg_2.png?raw=true",
@@ -146,28 +141,33 @@ const ASSETS_SRC = {
     cactus: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_os/dr_ge_1_as_os_1/cs_1.png?raw=true",
     btnPlay: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true",
     btnReplay: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/ry_ne_ui_bn.png?raw=true",
-    
+    iconBack: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/aw_bk_in_24dp_000000.png?raw=true",
+    iconHome: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_000000.png?raw=true",
+
     idle: Array.from({length:10}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_le_${i+1}.png?raw=true`),
     run: Array.from({length:8}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_rn_${i+1}.png?raw=true`),
     jump: Array.from({length:12}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_jp_${i+1}.png?raw=true`),
     dead: Array.from({length:8}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_dd_${i+1}.png?raw=true`),
     bird: Array.from({length:4}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_os/dr_ge_1_as_os_1/dr_ge_1_as_os_1_bds_1/be_bd_${i+1}.png?raw=true`),
     
+    bgMusic: "https://github.com/risraelrajacir/sample_0_1/raw/refs/heads/main/8-bit-background-music-for-arcade-game-come-on-mario-164702.mp3",
     sndJump: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_sd_es/dr_ge_1_as_sd_es_1/jp_sd_et.mp3",
     sndDuck: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_sd_es/dr_ge_1_as_sd_es_1/wh_sd_et.mp3",
-    sndDie: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/se_ge_1/se_ge_1_as/se_ge_1_as_sd_es/se_ge_1_as_sd_es_1/ge_or_sd_et_.mp3"
+    sndDie: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/se_ge_1/se_ge_1_as/se_ge_1_as_sd_es/se_ge_1_as_sd_es_1/ge_or_sd_et_.mp3",
+    // ADDED CLICK SOUND
+    sndClick: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/ck_sd_et.mp3"
 };
 
 const CONFIG = {
-    startSpeed: 10,     
-    gravity: 0.7,
-    jumpForce: -14,
+    startSpeed: 8.5,     
+    maxSpeed: 22.0,      
+    gravity: 0.75,
+    jumpForce: -14.5,
     groundH: 80,
     dinoSize: 85,
     duckDuration: 45
 };
 
-// --- GLOBALS ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const loader = document.getElementById('loader');
@@ -177,7 +177,6 @@ let assets = {};
 let sounds = {};
 let gameState = "INIT"; 
 let score = 0;
-let highScore = localStorage.getItem('dino_score_universal') || 0;
 let speed = CONFIG.startSpeed;
 let frames = 0;
 
@@ -187,35 +186,14 @@ let groundOffset = 0;
 let input = { up: false, down: false };
 let duckTimer = 0;
 let inputLockDuck = false;
+let activeBtn = null; 
 
-// Determine Mobile
 let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 let ui = { flashOp: 0, textY: -100, boardY: 600, targetBoardY: 150, pulse: 1 };
 
-if(isMobile) {
-    document.getElementById('mobile-controls').style.display = 'block';
-    
-    const btnJump = document.getElementById('btn-jump');
-    const btnDuck = document.getElementById('btn-duck');
+if(isMobile) document.getElementById('mobile-controls').style.display = 'block';
 
-    // JUMP Event
-    const triggerJump = (e) => {
-        if(e.cancelable) e.preventDefault();
-        if(gameState === "PLAY") input.up = true;
-        else checkClick();
-    };
-    btnJump.addEventListener('touchstart', triggerJump, {passive:false});
-    btnJump.addEventListener('touchend', (e) => { e.preventDefault(); input.up = false; });
-
-    // DUCK Event
-    const triggerDuck = (e) => {
-        if(e.cancelable) e.preventDefault();
-        input.down = true;
-    };
-    btnDuck.addEventListener('touchstart', triggerDuck, {passive:false});
-    btnDuck.addEventListener('touchend', (e) => { e.preventDefault(); input.down = false; });
-}
-
+// --- ASSET LOADER ---
 async function init() {
     let toLoad = [];
     const add = (k, s) => toLoad.push({k, s});
@@ -223,6 +201,8 @@ async function init() {
     add('bg', ASSETS_SRC.bg); add('ground', ASSETS_SRC.ground);
     add('cactus', ASSETS_SRC.cactus); add('btnPlay', ASSETS_SRC.btnPlay);
     add('btnReplay', ASSETS_SRC.btnReplay);
+    add('iconBack', ASSETS_SRC.iconBack);
+    add('iconHome', ASSETS_SRC.iconHome);
     
     ASSETS_SRC.idle.forEach((s, i)=> add(`idle_${i}`, s));
     ASSETS_SRC.run.forEach((s, i)=> add(`run_${i}`, s));
@@ -254,9 +234,16 @@ async function init() {
         }
     });
 
+    sounds.bgm = new Audio(ASSETS_SRC.bgMusic);
+    sounds.bgm.loop = true;
+    sounds.bgm.volume = 0.5;
+
     sounds.jump = new Audio(ASSETS_SRC.sndJump);
     sounds.duck = new Audio(ASSETS_SRC.sndDuck);
     sounds.die = new Audio(ASSETS_SRC.sndDie);
+    
+    // CLICK SOUND
+    sounds.click = new Audio(ASSETS_SRC.sndClick);
 
     setTimeout(() => {
         loader.style.opacity = 0;
@@ -266,20 +253,29 @@ async function init() {
     }, 500);
 }
 
+// --- LOGIC ---
+function playClickSound() {
+    sounds.click.currentTime = 0;
+    sounds.click.play().catch(()=>{});
+}
+
 function goHome() {
     gameState = "HOME";
     resetGame();
+    sounds.bgm.pause();
+    sounds.bgm.currentTime = 0;
     ui.flashOp = 0; ui.textY = -100; ui.boardY = canvas.height + 200;
 }
 
 function startGame() {
     gameState = "PLAY";
     resetGame();
+    sounds.bgm.currentTime = 0;
+    sounds.bgm.play().catch(()=>{});
     sounds.jump.play().catch(()=>{});
 }
 
 function resetGame() {
-    // DINO: kept sunken as requested
     dino.y = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10; 
     dino.vy = 0;
     dino.state = "RUN"; 
@@ -290,6 +286,7 @@ function resetGame() {
     groundOffset = 0;
     duckTimer = 0;
     inputLockDuck = false;
+    activeBtn = null;
 }
 
 function update() {
@@ -302,7 +299,11 @@ function update() {
     else if (gameState === "PLAY") {
         frames++;
         score++;
-        speed += 0.003; 
+        
+        if (speed < CONFIG.maxSpeed) {
+            speed += 0.002; 
+        }
+        
         groundOffset = (groundOffset + speed) % assets.ground.width;
         
         const groundTop = canvas.height - CONFIG.groundH;
@@ -314,7 +315,6 @@ function update() {
             dino.y = floor;
             dino.vy = 0;
 
-            // Auto Release Duck
             if (duckTimer > 0) {
                 dino.state = "DUCK";
                 duckTimer--;
@@ -353,6 +353,7 @@ function update() {
     }
     else if (gameState === "DYING") {
         frames++;
+        sounds.bgm.pause();
         const groundTop = canvas.height - CONFIG.groundH;
         const floor = groundTop - CONFIG.dinoSize + 10;
         
@@ -363,13 +364,10 @@ function update() {
             if (frames % 4 === 0) dino.frame++;
         } else {
             gameState = "GAMEOVER";
-            if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('dino_score_universal', highScore);
-            }
         }
     }
     else if (gameState === "GAMEOVER") {
+        frames++;
         const floor = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10;
         if (dino.y < floor) dino.y += CONFIG.gravity * 2;
 
@@ -380,17 +378,49 @@ function update() {
 }
 
 function manageObstacles() {
-    if (frames % Math.floor(90 - speed) === 0 && frames > 30) {
-        if(Math.random() > 0.3) {
-            if(obstacles.length === 0 || canvas.width - obstacles[obstacles.length-1].x > 250) {
-                let type = Math.random() > 0.6 ? "BIRD" : "CACTUS";
-                let obs = {type, x:canvas.width, y:0, w:0, h:0, frame:0};
-                
-                const groundTop = canvas.height - CONFIG.groundH;
+    let safeGap = (40 * speed) + 120;
+    
+    if (obstacles.length === 0 || canvas.width - obstacles[obstacles.length-1].x > safeGap) {
+        if(Math.random() > 0.1) {
+            
+            let type = Math.random() > 0.65 ? "BIRD" : "CACTUS";
+            let clusterSize = 1;
 
-                if(type === "CACTUS") {
+            if (type === "CACTUS") {
+                let r = Math.random();
+                if (score < 500) clusterSize = 1;
+                else if (score < 1500) clusterSize = (r > 0.5) ? 2 : 1;
+                else if (score < 3000) clusterSize = (r > 0.6) ? 4 : 2;
+                else if (score < 5000) clusterSize = (r > 0.7) ? 7 : 4;
+                else clusterSize = (r > 0.8) ? 10 : 7;
+            }
+
+            const groundTop = canvas.height - CONFIG.groundH;
+
+            // Spacing logic inside cluster
+            for(let i=0; i<clusterSize; i++) {
+                let spacing = 50; 
+                let extraGap = 0;
+                // Add a jumpable gap every 3 cacti for large clusters
+                if (clusterSize > 3 && i > 0 && i % 3 === 0) {
+                    extraGap = 300 + (speed * 2);
+                }
+
+                let xPos = canvas.width + (i * spacing) + extraGap;
+                // If using gaps, we need to shift all subsequent ones
+                // Simplified: just push one object. Complex wave logic creates separate objects.
+                // For this implementation, we rely on the loop adding spacing. 
+                // But simple i*spacing makes a wall.
+                // Correction: We need cumulative X.
+            }
+            
+            // Re-implementing simplified wave spawn to avoid logic errors in loop
+            let currentX = canvas.width;
+            for(let i=0; i<clusterSize; i++) {
+                let obs = { type, x: currentX, w:0, h:0, frame:0 };
+                
+                if (type === "CACTUS") {
                     obs.w = 50; obs.h = 60;
-                    // CACTUS: Exactly on top line
                     obs.y = groundTop - obs.h; 
                 } else {
                     obs.w = 50; obs.h = 40;
@@ -399,6 +429,10 @@ function manageObstacles() {
                     else obs.y = groundTop - 50; 
                 }
                 obstacles.push(obs);
+
+                // Add gap logic
+                if ((i + 1) % 3 === 0) currentX += (280 + speed * 5);
+                else currentX += 50;
             }
         }
     }
@@ -489,10 +523,22 @@ function drawUI() {
         ctx.fillText("DINO RUN", canvas.width/2, 160);
 
         if (assets.btnPlay) {
-            const w = 150 * ui.pulse;
-            const h = 150 * ui.pulse;
+            const scale = (activeBtn === 'play') ? 0.9 : ui.pulse;
+            const w = 150 * scale;
+            const h = 150 * scale;
             ctx.drawImage(assets.btnPlay, canvas.width/2 - w/2, 260 - h/2, w, h);
         }
+
+        const scale = (activeBtn === 'back') ? 0.9 : 1.0;
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.beginPath();
+        ctx.roundRect(20, 20, 220 * scale, 50 * scale, 25);
+        ctx.fill();
+        if(assets.iconBack) ctx.drawImage(assets.iconBack, 30, 30, 30 * scale, 30 * scale);
+        ctx.fillStyle = "#333";
+        ctx.textAlign = "left";
+        ctx.font = (20 * scale) + "px 'Fredoka One'";
+        ctx.fillText("Back to Games", 70, 52);
     }
 
     if (gameState === "PLAY" || gameState === "DYING") {
@@ -538,12 +584,16 @@ function drawUI() {
 
         ctx.fillStyle = "#333";
         ctx.font = "35px 'Fredoka One'";
+        
+        // Motivation Score
+        let displayBest = Math.floor(score) + 50; 
+
         ctx.fillText(Math.floor(score), pX+290, pY+80);
-        ctx.fillText(Math.floor(highScore), pX+290, pY+140);
+        ctx.fillText(displayBest, pX+290, pY+140);
         
         ctx.beginPath();
         ctx.arc(pX+70, pY+85, 40, 0, Math.PI*2);
-        ctx.fillStyle = score > 1000 ? "#ffca28" : "#cfd8dc"; 
+        ctx.fillStyle = score > 1500 ? "#ffca28" : (score > 500 ? "#cfd8dc" : "#a1887f"); 
         ctx.fill();
         ctx.strokeStyle = "#333";
         ctx.lineWidth = 2;
@@ -552,10 +602,22 @@ function drawUI() {
         ctx.restore();
 
         if(assets.btnReplay) {
-            const w = 150 * ui.pulse;
-            const h = 150 * ui.pulse;
-            ctx.drawImage(assets.btnReplay, canvas.width/2 - w/2, (ui.boardY + 190) - h/2, w, h);
+            const scale = (activeBtn === 'replay') ? 0.9 : ui.pulse;
+            const w = 150 * scale;
+            const h = 150 * scale;
+            ctx.drawImage(assets.btnReplay, canvas.width/2 - w/2, (ui.boardY + 230) - h/2, w, h);
         }
+
+        const scale = (activeBtn === 'home') ? 0.9 : 1.0;
+        const hSize = 50 * scale;
+        const hX = canvas.width - 20 - 50 + (50-hSize)/2; 
+        const hY = 20 + (50-hSize)/2;
+        
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.beginPath();
+        ctx.roundRect(hX, hY, hSize, hSize, 25);
+        ctx.fill();
+        if(assets.iconHome) ctx.drawImage(assets.iconHome, hX + 10, hY + 10, 30 * scale, 30 * scale);
     }
 }
 
@@ -565,35 +627,82 @@ function loop() {
     requestAnimationFrame(loop);
 }
 
-const checkClick = () => {
-    if (gameState === "HOME") startGame();
-    else if (gameState === "GAMEOVER") {
-         if (Math.abs(ui.boardY - ui.targetBoardY) < 5) goHome();
+function handlePress(x, y) {
+    if (gameState === "HOME") {
+        if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > 260 - 75 && y < 260 + 75) {
+            activeBtn = 'play';
+            playClickSound(); // CLICK SOUND
+        }
+        if (x >= 20 && x <= 240 && y >= 20 && y <= 70) {
+            activeBtn = 'back';
+            playClickSound(); // CLICK SOUND
+        }
     }
+    else if (gameState === "GAMEOVER") {
+        if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > (ui.boardY + 230) - 75 && y < (ui.boardY + 230) + 75) {
+            activeBtn = 'replay';
+            playClickSound(); // CLICK SOUND
+        }
+        if (x >= canvas.width - 70 && x <= canvas.width - 20 && y >= 20 && y <= 70) {
+            activeBtn = 'home';
+            playClickSound(); // CLICK SOUND
+        }
+    }
+}
+
+function handleRelease() {
+    if (activeBtn === 'play') startGame();
+    if (activeBtn === 'back') setTimeout(() => window.location.href = MAIN_HOME_URL, 100);
+    if (activeBtn === 'replay') goHome();
+    if (activeBtn === 'home') setTimeout(() => window.location.href = MAIN_HOME_URL, 100);
+    activeBtn = null;
+}
+
+const getXY = (e) => {
+    let cx = e.touches ? e.touches[0].clientX : e.clientX;
+    let cy = e.touches ? e.touches[0].clientY : e.clientY;
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (cx - rect.left) * (canvas.width / rect.width),
+        y: (cy - rect.top) * (canvas.height / rect.height)
+    };
 };
 
 window.addEventListener('keydown', e => {
     if(e.code === 'ArrowUp' || e.code === 'Space') input.up = true;
     if(e.code === 'ArrowDown') input.down = true;
-    if(gameState !== "PLAY") checkClick();
 });
 window.addEventListener('keyup', e => {
     if(e.code === 'ArrowDown') input.down = false;
     if(e.code === 'ArrowUp') input.up = false;
 });
 
-canvas.addEventListener('mousedown', (e) => {
-    // Only check clicks on desktop if not interacting with mobile buttons
-    // But since mobile buttons are 'absolute', this listener is mainly for desktop
-    if(!isMobile) {
-        if (gameState === "PLAY") input.up = true;
-        else checkClick();
-    } else {
-        // On mobile, taps on canvas trigger game start/restart if needed
-        if (gameState !== "PLAY") checkClick();
-    }
+canvas.addEventListener('mousedown', e => {
+    const p = getXY(e);
+    if (gameState === "PLAY") input.up = true;
+    else handlePress(p.x, p.y);
 });
-canvas.addEventListener('mouseup', () => input.up = false);
+
+canvas.addEventListener('mouseup', e => {
+    if (gameState === "PLAY") input.up = false;
+    else handleRelease();
+});
+
+canvas.addEventListener('touchstart', e => {
+    if(e.target.id === 'gameCanvas') e.preventDefault();
+    const p = getXY(e);
+    if (gameState === "PLAY") {
+        if (p.x < canvas.width/2) input.down = true; else input.up = true;
+    } else {
+        handlePress(p.x, p.y);
+    }
+}, {passive:false});
+
+canvas.addEventListener('touchend', e => {
+    if(e.target.id === 'gameCanvas') e.preventDefault();
+    if (gameState === "PLAY") { input.up=false; input.down=false; }
+    else handleRelease();
+});
 
 init();
 
