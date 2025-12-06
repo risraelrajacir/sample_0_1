@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Strict Viewport settings to prevent zooming -->
+    <!-- Strict Viewport for Mobile: Disables Zooming and scales correctly -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>RACING GAME</title>
@@ -10,57 +10,62 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
     <style>
-        /* --- GLOBAL PROTECTION CSS --- */
+        /* --- GLOBAL PROTECTION & RESET --- */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            /* Disable selection */
-            -webkit-user-select: none;
+            -webkit-user-select: none; /* No Text Select */
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
-            /* Disable drag */
-            -webkit-user-drag: none;
-            -webkit-touch-callout: none; /* iOS Long press disable */
-            /* Disable highlight color */
+            -webkit-user-drag: none; /* No Image Drag */
+            -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
         }
 
         body, html {
             width: 100%;
             height: 100%;
-            overflow: hidden; /* No scrollbars */
+            overflow: hidden;
             background-color: #1a1a1a;
             display: flex;
             justify-content: center;
             align-items: center;
             font-family: 'Segoe UI', 'Roboto', 'Helvetica', sans-serif;
-            touch-action: none; /* CRITICAL: Disables browser gestures like pinch/scroll */
+            touch-action: none; /* Prevents scroll/pinch lag */
         }
 
-        /* Prevent image interaction globally */
-        img {
-            pointer-events: none; /* Cannot click/drag images by default */
-            user-drag: none;
-            -webkit-user-drag: none;
-        }
+        img { pointer-events: none; -webkit-user-drag: none; user-drag: none; }
 
+        /* Game Wrapper Centers the Game Container */
         #gameWrapper {
             width: 100%;
             height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
+            background-color: #000;
         }
         
+        /* The Game Area - Maintains 9:16 Aspect Ratio */
         #gameContainer {
             aspect-ratio: 9 / 16;
-            height: 100%;
-            max-width: 100vw;
+            height: 100%; /* Fill height first */
+            max-width: 100vw; /* Ensure width doesn't overflow */
+            /* If screen is too wide (Landscape), width is limited by aspect ratio */
+            background-color: #1a1a1a; 
             position: relative;
             overflow: hidden;
             box-shadow: 0 0 25px rgba(255, 255, 255, 0.15);
+        }
+
+        /* Landscape Adjustment: If width is greater than height (PC/Landscape Phone), constrain by height */
+        @media (min-aspect-ratio: 9/16) {
+            #gameContainer {
+                height: 100vh;
+                width: auto; /* Width adjusts to keep ratio */
+            }
         }
 
         #gameCanvas {
@@ -79,9 +84,10 @@
             width: 100%;
             height: 100%;
             z-index: 10;
-            pointer-events: none; /* Let clicks pass through empty UI space */
+            pointer-events: none;
         }
         
+        /* UI Screens (Menu, Game Over) */
         .ui-screen {
             position: absolute;
             top: 0;
@@ -95,7 +101,7 @@
             background-color: rgba(0, 0, 0, 0.6);
             color: white;
             text-align: center;
-            pointer-events: auto; /* Re-enable clicks for screens */
+            pointer-events: auto;
         }
 
         .ui-screen h1 {
@@ -104,31 +110,24 @@
             letter-spacing: 3px;
             color: #FFD700;
             text-shadow: 4px 4px 0 #000, -2px -2px 0 #c56e00;
-            pointer-events: none; /* Cannot select text */
+            pointer-events: none;
         }
         
         #menuScreen, #gameOverScreen { display: none; }
         
-        /* --- ANIMATIONS --- */
+        /* --- BUTTONS & ICONS --- */
+        .ui-button { cursor: pointer; border: none; background: none; padding: 0; display: block; pointer-events: auto; }
+        
+        /* Animations */
         .anim-attract { animation: attract-pulse 1.5s infinite ease-in-out; transform-origin: center; }
         @keyframes attract-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
         .button-clicked { transform: scale(0.9) !important; filter: brightness(0.8); animation: none !important; transition: transform 0.05s ease-out; }
         .fade-in-anim { animation: simpleFadeIn 0.5s ease-out 0.8s forwards; }
         @keyframes simpleFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* --- BUTTONS --- */
-        .ui-button {
-            cursor: pointer;
-            border: none;
-            background: none;
-            padding: 0;
-            display: block;
-            pointer-events: auto; /* Allow clicking specifically on buttons */
-        }
-
         #startButton { width: 140px; }
-        #replayWrapper { margin-top: 25px; opacity: 0; pointer-events: none; } /* Wrapper non-clickable */
-        #replayButton { width: 140px; display: block; pointer-events: auto; } /* Button clickable */
+        #replayWrapper { margin-top: 25px; opacity: 0; pointer-events: none; }
+        #replayButton { width: 140px; display: block; pointer-events: auto; }
 
         #gameOverText {
             font-family: 'Bangers', cursive;
@@ -159,19 +158,13 @@
         @keyframes gameOverBounce { from { transform: translateY(-100px) scale(0.5); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
         @keyframes scorePanelSlideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
-        .score-display {
-            color: #333;
-            text-align: center;
-            font-family: 'Segoe UI', 'Roboto', 'Helvetica', sans-serif;
-            padding: 0 10px;
-        }
+        .score-display { color: #333; text-align: center; font-family: 'Segoe UI', 'Roboto', 'Helvetica', sans-serif; padding: 0 10px; }
         .score-display h2 { font-size: 1rem; margin: 0 0 10px 0; color: #666; font-weight: 700; }
         .score-display p { font-size: 2.5rem; margin: 0; color: #e65100; font-weight: 900; }
         
         #scoreBox {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 20px; left: 20px;
             background-color: rgba(0, 0, 0, 0.6);
             color: white;
             padding: 8px 18px;
@@ -183,26 +176,28 @@
             pointer-events: none;
         }
 
+        /* --- FIXED CONTROLS POSITION --- */
         #controlContainer {
             position: absolute;
             left: 0;
             right: 0;
-            bottom: 15%; 
+            /* Placed at the very bottom with safe area padding */
+            bottom: 20px; 
             padding-bottom: env(safe-area-inset-bottom);
-            display: none;
+            display: none; /* Hidden by default, shown via JS on mobile */
             justify-content: space-between;
-            padding-left: 30px;
-            padding-right: 30px;
+            padding-left: 20px;
+            padding-right: 20px;
             box-sizing: border-box;
             z-index: 100;
-            pointer-events: none; 
+            pointer-events: none; /* Clicks pass through the container gap */
         }
         .control-button {
-            pointer-events: auto;
-            width: 80px;
-            height: 80px;
-            background-color: rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(4px);
+            pointer-events: auto; /* Buttons catch clicks */
+            width: 85px;
+            height: 85px;
+            background-color: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
             color: white;
             border-radius: 50%;
             display: flex;
@@ -210,84 +205,60 @@
             align-items: center;
             font-size: 3rem;
             cursor: pointer;
-            user-select: none;
-            border: 2px solid rgba(255,255,255,0.3);
+            border: 2px solid rgba(255,255,255,0.4);
             transition: transform 0.1s ease-out;
+            /* Ensure controls are clearly visible */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
         
         #countdown {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            font-family: 'Bangers', cursive;
-            color: #FFD700;
+            position: absolute; top: 50%; left: 50%;
+            font-family: 'Bangers', cursive; color: #FFD700;
             text-shadow: 5px 5px 15px rgba(0,0,0,0.6);
-            display: none;
-            font-size: 10rem;
+            display: none; font-size: 10rem;
             animation: countdown-zoom-fade 1s ease-in-out;
             pointer-events: none;
         }
-
-        @keyframes countdown-zoom-fade {
-            from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-            50% { opacity: 1; }
-            to { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
-        }
+        @keyframes countdown-zoom-fade { from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 50% { opacity: 1; } to { transform: translate(-50%, -50%) scale(1.2); opacity: 0; } }
         
+        /* Navigation Buttons */
         #backButton, #homeButton {
             position: absolute;
             top: 20px;
-            transition: transform 0.1s, opacity 0.2s;
             cursor: pointer;
-            z-index: 100;
+            z-index: 200; /* High Z-Index to work */
             pointer-events: auto;
         }
         #backButton {
             left: 20px;
-            display: flex;
-            align-items: center;
-            color: white;
-            text-decoration: none;
-            font-size: 1rem;
-            font-weight: bold;
+            display: flex; align-items: center;
+            color: white; text-decoration: none;
+            font-size: 1rem; font-weight: bold;
             text-shadow: 1px 1px 3px #000;
+            transition: opacity 0.2s;
         }
+        #backButton:hover { opacity: 0.8; }
         #backButton img { width: 24px; height: 24px; margin-right: 8px; pointer-events: none; }
-        #homeButton { right: 20px; }
+        
+        #homeButton { right: 20px; transition: transform 0.1s; }
+        #homeButton:hover { transform: scale(1.1); }
         #homeButton img { width: 32px; height: 32px; pointer-events: none; }
         
         #loaderScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
             background-color: #1a1a1a;
-            z-index: 20;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            z-index: 500;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
             color: white;
             pointer-events: none;
         }
         #loaderText { font-size: 1.5rem; margin-bottom: 20px; }
-        #progressBarContainer {
-            width: 80%;
-            height: 20px;
-            background-color: #444;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        #progressBar {
-            width: 0%;
-            height: 100%;
-            background-color: #FFD700;
-            transition: width 0.2s ease-out;
-        }
+        #progressBarContainer { width: 80%; height: 20px; background-color: #444; border-radius: 10px; overflow: hidden; }
+        #progressBar { width: 0%; height: 100%; background-color: #FFD700; transition: width 0.2s ease-out; }
     </style>
 </head>
-<!-- Block context menu and dragging via attributes -->
 <body oncontextmenu="return false;" ondragstart="return false;" ondrop="return false;">
     <div id="gameWrapper">
         <div id="gameContainer">
@@ -308,6 +279,7 @@
                     <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true" id="startButton" class="ui-button anim-attract" alt="Play Game" draggable="false">
                 </div>
                 <div id="gameOverScreen" class="ui-screen">
+                    <!-- Home Button (Reloads Game) -->
                     <a href="#" id="homeButton" draggable="false">
                         <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_FFFFFF.png?raw=true" alt="Home" draggable="false">
                     </a>
@@ -328,6 +300,7 @@
                 </div>
                 <div id="countdown"></div>
                 <div id="scoreBox">Score: 0</div>
+                <!-- Control Container -->
                 <div id="controlContainer">
                     <div id="leftButton" class="control-button">◀</div>
                     <div id="rightButton" class="control-button">▶</div>
@@ -345,12 +318,10 @@
     <audio id="soundClick" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/ck_sd_et.mp3" preload="auto"></audio>
 
     <script>
-        // --- 1. PREVENT ASSET DOWNLOAD & ZOOMING (JS Layer) ---
+        // JS Protection
         document.addEventListener('contextmenu', event => event.preventDefault());
         document.addEventListener('dragstart', event => event.preventDefault());
-        document.addEventListener('selectstart', event => event.preventDefault()); // Stop text selection
-
-        // Prevent Pinch Zoom
+        document.addEventListener('selectstart', event => event.preventDefault());
         document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
         document.addEventListener('gesturechange', function(e) { e.preventDefault(); });
         document.addEventListener('gestureend', function(e) { e.preventDefault(); });
@@ -361,7 +332,6 @@
             const ctx = canvas.getContext('2d');
             ctx.imageSmoothingEnabled = true;
 
-            // DOM Elements
             const loaderScreen = document.getElementById('loaderScreen');
             const progressBar = document.getElementById('progressBar');
             const scoreBox = document.getElementById('scoreBox');
@@ -381,7 +351,6 @@
             const homeButton = document.getElementById('homeButton');
             const backButton = document.getElementById('backButton');
 
-            // Audio
             const soundBackground = document.getElementById('soundBackground');
             const soundCar = document.getElementById('soundCar');
             const soundHit = document.getElementById('soundHit');
@@ -390,7 +359,6 @@
             const soundCountdown = document.getElementById('soundCountdown');
             const soundClick = document.getElementById('soundClick');
 
-            // Variables
             let gameState = 'loading';
             let score = 0;
             let roadY = 0;
@@ -407,11 +375,9 @@
             let lastSwitchTime = 0;
             let lastTimestamp = 0;
             
-            // Resize memory
             let lastClientWidth = 0;
             let lastClientHeight = 0;
 
-            // Assets
             let roadImage, playerCarImage, coinImage;
             let obstacleImages = [];
             
@@ -448,18 +414,14 @@
                 menuScreen.style.display = 'flex';
                 loaderScreen.style.transition = "opacity 0.5s ease-out";
                 loaderScreen.style.opacity = 0;
-                setTimeout(() => {
-                    loaderScreen.style.display = 'none';
-                }, 500);
+                setTimeout(() => { loaderScreen.style.display = 'none'; }, 500);
 
                 setupEventListeners();
                 requestAnimationFrame(gameLoop);
             }
 
             function isMobileDevice() {
-                return (('ontouchstart' in window) || 
-                        (navigator.maxTouchPoints > 0) || 
-                        (window.innerWidth <= 1024));
+                return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 1024));
             }
 
             function loadAsset(asset) {
@@ -478,29 +440,15 @@
             }
 
             async function preloadAssets(onProgress) {
-                const imageElements = [
-                    new Image(), new Image(), new Image(),
-                    ...obstacleSources.map(() => new Image()),
-                    ...uiImageSources.map(() => new Image())
-                ];
+                const imageElements = [new Image(), new Image(), new Image(), ...obstacleSources.map(() => new Image()), ...uiImageSources.map(() => new Image())];
                 const imageSrcs = [roadImgSrc, playerCarImgSrc, coinImgSrc, ...obstacleSources, ...uiImageSources];
                 imageSrcs.forEach((src, i) => imageElements[i].src = src);
-
                 const assetPromises = [...imageElements.map(loadAsset), ...soundSources.map(loadAsset)];
-                
                 let loadedCount = 0;
                 const totalAssets = assetPromises.length;
                 onProgress(0);
-
-                const wrappedPromises = assetPromises.map(p => 
-                    p.then(() => {
-                        loadedCount++;
-                        onProgress(loadedCount / totalAssets);
-                    })
-                );
-                
+                const wrappedPromises = assetPromises.map(p => p.then(() => { loadedCount++; onProgress(loadedCount / totalAssets); }));
                 await Promise.all(wrappedPromises);
-
                 roadImage = imageElements[0];
                 playerCarImage = imageElements[1];
                 coinImage = imageElements[2];
@@ -508,7 +456,6 @@
             }
 
             function setupEventListeners() {
-                // --- 2. ROTATION/RESIZE HANDLING ---
                 const handleResize = () => {
                     const widthChanged = Math.abs(window.innerWidth - lastClientWidth) > 50;
                     if (widthChanged) {
@@ -519,17 +466,9 @@
                     }
                 };
                 window.addEventListener('resize', handleResize);
-                
-                // Specific listener for phone rotation
-                window.addEventListener('orientationchange', () => {
-                    // Small delay to allow device to settle dimensions
-                    setTimeout(handleResize, 100);
-                });
+                window.addEventListener('orientationchange', () => { setTimeout(handleResize, 100); });
 
-                function playClickSound() {
-                    soundClick.currentTime = 0;
-                    soundClick.play();
-                }
+                function playClickSound() { soundClick.currentTime = 0; soundClick.play(); }
 
                 function addPressAnimation(element) {
                     const press = () => element.classList.add('button-clicked');
@@ -544,23 +483,26 @@
                 const animButtons = [startButton, replayButton, homeButton, backButton, leftButton, rightButton];
                 animButtons.forEach(btn => { if(btn) addPressAnimation(btn); });
 
-                const clickButtons = [startButton, replayButton];
-                clickButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        playClickSound();
-                        setTimeout(prepareGame, 150); 
-                    });
+                // Play/Replay Buttons
+                [startButton, replayButton].forEach(button => {
+                    button.addEventListener('click', () => { playClickSound(); setTimeout(prepareGame, 150); });
                 });
 
-                const navButtons = [homeButton, backButton];
-                navButtons.forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        playClickSound();
-                        setTimeout(() => { window.location.href = button.href || "#"; }, 150);
-                    });
+                // Back Button
+                backButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    playClickSound();
+                    setTimeout(() => { window.location.href = backButton.href || "#"; }, 150);
+                });
+
+                // Home Button (Reloads Page)
+                homeButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    playClickSound();
+                    setTimeout(() => { window.location.reload(); }, 150);
                 });
                 
+                // Controls
                 const startMove = (direction) => { if (gameState === 'playing') moveDirection = direction; };
                 const endMove = () => { moveDirection = null; };
 
@@ -568,16 +510,8 @@
                 rightButton.addEventListener('mousedown', () => startMove('right'));
                 window.addEventListener('mouseup', endMove);
 
-                leftButton.addEventListener('touchstart', (e) => { 
-                    if(e.cancelable) e.preventDefault(); 
-                    startMove('left'); 
-                }, { passive: false });
-                
-                rightButton.addEventListener('touchstart', (e) => { 
-                    if(e.cancelable) e.preventDefault(); 
-                    startMove('right'); 
-                }, { passive: false });
-                
+                leftButton.addEventListener('touchstart', (e) => { if(e.cancelable) e.preventDefault(); startMove('left'); }, { passive: false });
+                rightButton.addEventListener('touchstart', (e) => { if(e.cancelable) e.preventDefault(); startMove('right'); }, { passive: false });
                 window.addEventListener('touchend', endMove);
 
                 window.addEventListener('keydown', e => {
@@ -585,68 +519,44 @@
                     if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') startMove('right');
                 });
                 window.addEventListener('keyup', e => {
-                    if ((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') || (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd')) {
-                        endMove();
-                    }
+                    if ((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') || (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd')) endMove();
                 });
             }
+
             function switchLane(direction) { if (!isSwitchingLanes && Date.now() - lastSwitchTime > laneSwitchCooldown) { isSwitchingLanes = true; if (direction === 'left' && playerCar.lane > 0) playerCar.lane--; else if (direction === 'right' && playerCar.lane < 3) playerCar.lane++; lastSwitchTime = Date.now(); } }
             
             function prepareGame() { 
-                gameOverText.classList.remove('game-over-anim'); 
-                scorePanel.classList.remove('score-panel-anim'); 
-                replayWrapper.classList.remove('fade-in-anim');
-                
-                menuScreen.style.display = 'none'; 
-                gameOverScreen.style.display = 'none'; 
-                scoreBox.style.display = 'none'; 
-                controlContainer.style.display = 'none'; 
-                gameState = 'countdown'; 
-                score = 0; 
-                roadSpeed = 350; 
-                spawnCooldown = 750; 
-                updateScoreDisplay(); 
-                obstacles = []; 
-                coins = []; 
-                popups = []; 
-                createPlayerCar(); 
-                startCountdown(); 
+                gameOverText.classList.remove('game-over-anim'); scorePanel.classList.remove('score-panel-anim'); replayWrapper.classList.remove('fade-in-anim');
+                menuScreen.style.display = 'none'; gameOverScreen.style.display = 'none'; scoreBox.style.display = 'none'; controlContainer.style.display = 'none'; 
+                gameState = 'countdown'; score = 0; roadSpeed = 350; spawnCooldown = 750; 
+                updateScoreDisplay(); obstacles = []; coins = []; popups = []; createPlayerCar(); startCountdown(); 
             }
             
             function startCountdown() { let count = 3; function showCount() { countdownElem.style.animation = 'none'; void countdownElem.offsetWidth; countdownElem.style.animation = 'countdown-zoom-fade 1s ease-in-out'; countdownElem.textContent = count > 0 ? count : 'GO!'; } soundCountdown.currentTime = 0; soundCountdown.play(); countdownElem.style.display = 'block'; showCount(); const timer = setInterval(() => { count--; if (count >= 0) showCount(); else { clearInterval(timer); countdownElem.style.display = 'none'; startGame(); } }, 1000); }
             
             function startGame() { 
-                gameState = 'playing'; 
-                scoreBox.style.display = 'block'; 
-                if (isMobileDevice()) {
-                    controlContainer.style.display = 'flex';
-                } else {
-                    controlContainer.style.display = 'none';
-                }
-                soundOpening.volume = 0.5; soundOpening.play(); 
-                soundCar.volume = 0.9; soundCar.currentTime = 0; soundCar.play(); 
-                soundBackground.volume = 0.3; soundBackground.currentTime = 0; soundBackground.play(); 
+                gameState = 'playing'; scoreBox.style.display = 'block'; 
+                if (isMobileDevice()) controlContainer.style.display = 'flex'; else controlContainer.style.display = 'none';
+                soundOpening.volume = 0.5; soundOpening.play(); soundCar.volume = 0.9; soundCar.currentTime = 0; soundCar.play(); soundBackground.volume = 0.3; soundBackground.currentTime = 0; soundBackground.play(); 
             }
             
             function triggerGameOver() { 
                 if (gameState !== 'playing') return; 
-                soundHit.play(); 
-                gameState = 'gameOver'; 
-                soundCar.pause(); 
-                soundBackground.pause(); 
-                const finalScore = Math.floor(score); 
-                const targetBestScore = (Math.floor(finalScore / 100) + 1) * 100; 
-                finalScoreElem.textContent = finalScore; 
-                bestScoreElem.textContent = targetBestScore; 
-                gameOverScreen.style.display = 'flex'; 
-                gameOverText.classList.add('game-over-anim'); 
-                scorePanel.classList.add('score-panel-anim'); 
-                replayWrapper.classList.add('fade-in-anim');
-                controlContainer.style.display = 'none'; 
-                scoreBox.style.display = 'none'; 
+                soundHit.play(); gameState = 'gameOver'; soundCar.pause(); soundBackground.pause(); 
+                const finalScore = Math.floor(score); const targetBestScore = (Math.floor(finalScore / 100) + 1) * 100; 
+                finalScoreElem.textContent = finalScore; bestScoreElem.textContent = targetBestScore; 
+                gameOverScreen.style.display = 'flex'; gameOverText.classList.add('game-over-anim'); scorePanel.classList.add('score-panel-anim'); replayWrapper.classList.add('fade-in-anim'); 
+                controlContainer.style.display = 'none'; scoreBox.style.display = 'none'; 
             }
             
-            function createPlayerCar() { const carWidth = gameContainer.clientWidth * 0.10; const carHeight = carWidth * 1.8; const initialLane = Math.random() < 0.5 ? 1 : 2; playerCar = { img: playerCarImage, width: carWidth, height: carHeight, x: lanePositions[initialLane] - (carWidth / 2), y: gameContainer.clientHeight - carHeight - 160, lane: initialLane }; }
+            function createPlayerCar() { 
+                const carWidth = gameContainer.clientWidth * 0.10; 
+                const carHeight = carWidth * 1.8; 
+                const initialLane = Math.random() < 0.5 ? 1 : 2; 
+                // Adjusted Y position to ensure it is VISIBLY ABOVE the controls
+                playerCar = { img: playerCarImage, width: carWidth, height: carHeight, x: lanePositions[initialLane] - (carWidth / 2), y: gameContainer.clientHeight - carHeight - 250, lane: initialLane }; 
+            }
+            
             let lastSpawnTime = 0;
             function manageSpawns(timestamp) { if (timestamp - lastSpawnTime > spawnCooldown) { if (!obstacles.length || obstacles[obstacles.length-1].y > gameContainer.clientHeight * 0.4) { spawnTrafficWave(); lastSpawnTime = timestamp; } } if ((!coins.length || coins[coins.length-1].y > gameContainer.clientHeight * 0.5) && Math.random() < 0.025) { spawnCoin(); } }
             function spawnTrafficWave() { const carWidth = gameContainer.clientWidth * 0.10; let availableLanes = [0, 1, 2, 3]; for (const obs of obstacles) { if (obs.y < carWidth * 3.5) availableLanes = availableLanes.filter(lane => Math.abs(lane - obs.lane) > 1); } availableLanes.sort(() => Math.random() - 0.5); const numCarsToSpawn = Math.random() < 0.6 ? 1 : 2; for (let i = 0; i < numCarsToSpawn && availableLanes.length > 0; i++) { spawnObstacle(carWidth, availableLanes.pop()); } }
@@ -654,29 +564,9 @@
             function spawnCoin() { const coinSize = gameContainer.clientWidth * 0.09; const laneIndex = Math.floor(Math.random() * 4); coins.push({ img: coinImage, width: coinSize, height: coinSize, x: lanePositions[laneIndex] - (coinSize / 2), y: -coinSize, speed: roadSpeed * 0.9 }); }
             
             function gameLoop(timestamp) { 
-                if (!lastTimestamp) lastTimestamp = timestamp; 
-                const deltaTime = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
-                lastTimestamp = timestamp; 
-                
-                ctx.clearRect(0, 0, canvas.width, canvas.height); 
-                drawRoad(deltaTime); 
-                
-                if (gameState === 'menu') {} 
-                else if (gameState === 'playing' || gameState === 'countdown') { 
-                    movePlayer(); 
-                    updateGameObjects(deltaTime); 
-                    drawGameObjects(); 
-                    if(gameState === 'playing') { 
-                        checkCollisions(); 
-                        manageSpawns(Date.now()); 
-                        const scoreFactor = Math.min(score / 500, 1); 
-                        roadSpeed += (speedAcceleration + (scoreFactor * 12)) * deltaTime; 
-                        if (spawnCooldown > minSpawnCooldown) spawnCooldown -= 0.1; 
-                        score += (roadSpeed / 100) * deltaTime; 
-                        updateScoreDisplay(); 
-                    } 
-                } 
-                requestAnimationFrame(gameLoop); 
+                if (!lastTimestamp) lastTimestamp = timestamp; const deltaTime = Math.min((timestamp - lastTimestamp) / 1000, 0.1); lastTimestamp = timestamp; 
+                ctx.clearRect(0, 0, canvas.width, canvas.height); drawRoad(deltaTime); 
+                if (gameState === 'menu') {} else if (gameState === 'playing' || gameState === 'countdown') { movePlayer(); updateGameObjects(deltaTime); drawGameObjects(); if(gameState === 'playing') { checkCollisions(); manageSpawns(Date.now()); const scoreFactor = Math.min(score / 500, 1); roadSpeed += (speedAcceleration + (scoreFactor * 12)) * deltaTime; if (spawnCooldown > minSpawnCooldown) spawnCooldown -= 0.1; score += (roadSpeed / 100) * deltaTime; updateScoreDisplay(); } } requestAnimationFrame(gameLoop); 
             }
             
             function drawRoad(deltaTime) { if (!roadImage) return; let currentSpeed = 0; if (gameState === 'playing' || gameState === 'countdown') currentSpeed = roadSpeed; else if (gameState === 'menu') currentSpeed = 120; roadY = (roadY + currentSpeed * deltaTime) % canvas.height; ctx.drawImage(roadImage, 0, roadY, canvas.width, canvas.height); ctx.drawImage(roadImage, 0, roadY - canvas.height, canvas.width, canvas.height); }
@@ -689,29 +579,18 @@
             
             function resizeGame(force = false) {
                 if (!force && gameContainer.clientWidth === lastClientWidth && gameContainer.clientHeight === lastClientHeight) return;
-                
-                lastClientWidth = gameContainer.clientWidth;
-                lastClientHeight = gameContainer.clientHeight;
-                
-                const gameWidth = lastClientWidth;
-                const gameHeight = lastClientHeight;
+                lastClientWidth = gameContainer.clientWidth; lastClientHeight = gameContainer.clientHeight;
+                const gameWidth = lastClientWidth; const gameHeight = lastClientHeight;
                 canvas.width = gameWidth; canvas.height = gameHeight;
-                const leftBoundaryPercent = 0.18;
-                const rightBoundaryPercent = 0.82;
-                leftBoundary = gameWidth * leftBoundaryPercent;
-                rightBoundary = gameWidth * rightBoundaryPercent;
-                const roadWidth = rightBoundary - leftBoundary;
-                const laneWidth = roadWidth / 4;
-                lanePositions = [
-                    leftBoundary + laneWidth * 0.5, leftBoundary + laneWidth * 1.5,
-                    leftBoundary + laneWidth * 2.5, leftBoundary + laneWidth * 3.5,
-                ];
+                const leftBoundaryPercent = 0.18; const rightBoundaryPercent = 0.82;
+                leftBoundary = gameWidth * leftBoundaryPercent; rightBoundary = gameWidth * rightBoundaryPercent;
+                const roadWidth = rightBoundary - leftBoundary; const laneWidth = roadWidth / 4;
+                lanePositions = [leftBoundary + laneWidth * 0.5, leftBoundary + laneWidth * 1.5, leftBoundary + laneWidth * 2.5, leftBoundary + laneWidth * 3.5];
                 if (playerCar.width) {
-                    const carWidth = gameWidth * 0.10;
-                    playerCar.width = carWidth;
-                    playerCar.height = carWidth * 1.8;
+                    const carWidth = gameWidth * 0.10; playerCar.width = carWidth; playerCar.height = carWidth * 1.8;
                     playerCar.x = lanePositions[playerCar.lane] - (carWidth / 2);
-                    playerCar.y = gameHeight - playerCar.height - 160;
+                    // Update player Y on resize to maintain gap
+                    playerCar.y = gameHeight - playerCar.height - 250;
                 }
             }
             init();
