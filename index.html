@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Strict Viewport for Mobile: Disables Zooming and scales correctly -->
+    <!-- Viewport Fixed for all orientations -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>RACING GAME</title>
@@ -10,16 +10,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
     <style>
-        /* --- GLOBAL PROTECTION & RESET --- */
+        /* --- GLOBAL RESET --- */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            -webkit-user-select: none; /* No Text Select */
-            -moz-user-select: none;
-            -ms-user-select: none;
+            -webkit-user-select: none;
             user-select: none;
-            -webkit-user-drag: none; /* No Image Drag */
+            -webkit-user-drag: none;
             -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
         }
@@ -28,43 +26,44 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #1a1a1a;
+            background-color: #0d0d0d;
             display: flex;
             justify-content: center;
             align-items: center;
             font-family: 'Segoe UI', 'Roboto', 'Helvetica', sans-serif;
-            touch-action: none; /* Prevents scroll/pinch lag */
+            touch-action: none;
         }
 
-        img { pointer-events: none; -webkit-user-drag: none; user-drag: none; }
+        img { pointer-events: none; user-drag: none; }
 
-        /* Game Wrapper Centers the Game Container */
         #gameWrapper {
             width: 100%;
             height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #000;
+            background: radial-gradient(circle, #2a2a2a 0%, #000000 100%);
         }
         
-        /* The Game Area - Maintains 9:16 Aspect Ratio */
+        /* --- GAME CONTAINER --- */
         #gameContainer {
+            /* Force 9:16 Aspect Ratio */
             aspect-ratio: 9 / 16;
-            height: 100%; /* Fill height first */
-            max-width: 100vw; /* Ensure width doesn't overflow */
-            /* If screen is too wide (Landscape), width is limited by aspect ratio */
-            background-color: #1a1a1a; 
+            height: 100dvh; 
+            max-width: 100vw;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 0 25px rgba(255, 255, 255, 0.15);
+            background-color: #1a1a1a;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
         }
 
-        /* Landscape Adjustment: If width is greater than height (PC/Landscape Phone), constrain by height */
+        /* Landscape Specific Fix */
         @media (min-aspect-ratio: 9/16) {
             #gameContainer {
-                height: 100vh;
-                width: auto; /* Width adjusts to keep ratio */
+                height: 100dvh;
+                width: auto;
+                border-left: 2px solid #333;
+                border-right: 2px solid #333;
             }
         }
 
@@ -79,28 +78,17 @@
 
         .ui-layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             z-index: 10;
             pointer-events: none;
         }
         
-        /* UI Screens (Menu, Game Over) */
         .ui-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background-color: rgba(0, 0, 0, 0.6);
-            color: white;
-            text-align: center;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white; text-align: center;
             pointer-events: auto;
         }
 
@@ -115,10 +103,8 @@
         
         #menuScreen, #gameOverScreen { display: none; }
         
-        /* --- BUTTONS & ICONS --- */
+        /* --- ANIMATIONS & BUTTONS --- */
         .ui-button { cursor: pointer; border: none; background: none; padding: 0; display: block; pointer-events: auto; }
-        
-        /* Animations */
         .anim-attract { animation: attract-pulse 1.5s infinite ease-in-out; transform-origin: center; }
         @keyframes attract-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
         .button-clicked { transform: scale(0.9) !important; filter: brightness(0.8); animation: none !important; transition: transform 0.05s ease-out; }
@@ -130,26 +116,18 @@
         #replayButton { width: 140px; display: block; pointer-events: auto; }
 
         #gameOverText {
-            font-family: 'Bangers', cursive;
-            font-size: 5rem;
-            letter-spacing: 4px;
-            color: #FFD700;
+            font-family: 'Bangers', cursive; font-size: 5rem; letter-spacing: 4px; color: #FFD700;
             text-shadow: 5px 5px 0 #000, -2px -2px 0 #c56e00;
-            margin-bottom: 25px;
-            opacity: 0;
+            margin-bottom: 25px; opacity: 0;
         }
         
         #scorePanel {
             background-color: rgba(255, 255, 255, 0.95);
             border-radius: 15px;
             box-shadow: 0px 8px 15px rgba(0,0,0,0.3);
-            width: 85%;
-            max-width: 400px;
-            padding: 20px;
-            box-sizing: border-box;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
+            width: 85%; max-width: 400px;
+            padding: 20px; box-sizing: border-box;
+            display: flex; justify-content: space-around; align-items: center;
             opacity: 0;
         }
 
@@ -163,75 +141,54 @@
         .score-display p { font-size: 2.5rem; margin: 0; color: #e65100; font-weight: 900; }
         
         #scoreBox {
-            position: absolute;
-            top: 20px; left: 20px;
-            background-color: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 8px 18px;
-            border-radius: 10px;
-            font-size: 1.8rem;
-            font-weight: 700;
+            position: absolute; top: 20px; left: 20px;
+            background-color: rgba(0, 0, 0, 0.6); color: white;
+            padding: 8px 18px; border-radius: 10px;
+            font-size: 1.8rem; font-weight: 700;
             border: 2px solid rgba(255, 255, 255, 0.4);
-            display: none;
-            pointer-events: none;
+            display: none; pointer-events: none;
         }
 
-        /* --- FIXED CONTROLS POSITION --- */
+        /* --- CONTROLS --- */
         #controlContainer {
-            position: absolute;
-            left: 0;
-            right: 0;
-            /* Placed at the very bottom with safe area padding */
+            position: absolute; left: 0; right: 0;
             bottom: 20px; 
             padding-bottom: env(safe-area-inset-bottom);
-            display: none; /* Hidden by default, shown via JS on mobile */
-            justify-content: space-between;
-            padding-left: 20px;
-            padding-right: 20px;
+            display: none; justify-content: space-between;
+            padding-left: 20px; padding-right: 20px;
             box-sizing: border-box;
-            z-index: 100;
-            pointer-events: none; /* Clicks pass through the container gap */
+            z-index: 100; pointer-events: none;
         }
         .control-button {
-            pointer-events: auto; /* Buttons catch clicks */
-            width: 85px;
-            height: 85px;
-            background-color: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(5px);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 3rem;
-            cursor: pointer;
-            border: 2px solid rgba(255,255,255,0.4);
-            transition: transform 0.1s ease-out;
-            /* Ensure controls are clearly visible */
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            pointer-events: auto;
+            width: 85px; height: 85px;
+            background-color: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(4px);
+            color: white; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 3rem; cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.3);
+            transition: transform 0.1s ease-out, background-color 0.1s;
         }
+        .control-button:active { background-color: rgba(255, 255, 255, 0.3); }
         
         #countdown {
             position: absolute; top: 50%; left: 50%;
             font-family: 'Bangers', cursive; color: #FFD700;
             text-shadow: 5px 5px 15px rgba(0,0,0,0.6);
             display: none; font-size: 10rem;
-            animation: countdown-zoom-fade 1s ease-in-out;
-            pointer-events: none;
+            animation: countdown-zoom-fade 1s ease-in-out; pointer-events: none;
         }
         @keyframes countdown-zoom-fade { from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 50% { opacity: 1; } to { transform: translate(-50%, -50%) scale(1.2); opacity: 0; } }
         
-        /* Navigation Buttons */
+        /* --- NAVIGATION BUTTONS --- */
         #backButton, #homeButton {
-            position: absolute;
-            top: 20px;
-            cursor: pointer;
-            z-index: 200; /* High Z-Index to work */
+            position: absolute; top: 20px;
+            cursor: pointer; z-index: 200;
             pointer-events: auto;
         }
         #backButton {
-            left: 20px;
-            display: flex; align-items: center;
+            left: 20px; display: flex; align-items: center;
             color: white; text-decoration: none;
             font-size: 1rem; font-weight: bold;
             text-shadow: 1px 1px 3px #000;
@@ -245,14 +202,10 @@
         #homeButton img { width: 32px; height: 32px; pointer-events: none; }
         
         #loaderScreen {
-            position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-color: #1a1a1a;
-            z-index: 500;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            color: white;
-            pointer-events: none;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #1a1a1a; z-index: 500;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: white; pointer-events: none;
         }
         #loaderText { font-size: 1.5rem; margin-bottom: 20px; }
         #progressBarContainer { width: 80%; height: 20px; background-color: #444; border-radius: 10px; overflow: hidden; }
@@ -271,6 +224,7 @@
                     </div>
                 </div>
                 <div id="menuScreen" class="ui-screen">
+                    <!-- BACK BUTTON (Returns to Main Home) -->
                     <a href="#" id="backButton" draggable="false">
                         <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/aw_bk_in_24dp_FFFFFF.png?raw=true" alt="Back" draggable="false">
                         <span>Back to Games</span>
@@ -279,7 +233,7 @@
                     <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true" id="startButton" class="ui-button anim-attract" alt="Play Game" draggable="false">
                 </div>
                 <div id="gameOverScreen" class="ui-screen">
-                    <!-- Home Button (Reloads Game) -->
+                    <!-- HOME BUTTON (Returns to Main Home) -->
                     <a href="#" id="homeButton" draggable="false">
                         <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_FFFFFF.png?raw=true" alt="Home" draggable="false">
                     </a>
@@ -300,7 +254,6 @@
                 </div>
                 <div id="countdown"></div>
                 <div id="scoreBox">Score: 0</div>
-                <!-- Control Container -->
                 <div id="controlContainer">
                     <div id="leftButton" class="control-button">◀</div>
                     <div id="rightButton" class="control-button">▶</div>
@@ -318,13 +271,14 @@
     <audio id="soundClick" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/ck_sd_et.mp3" preload="auto"></audio>
 
     <script>
-        // JS Protection
-        document.addEventListener('contextmenu', event => event.preventDefault());
-        document.addEventListener('dragstart', event => event.preventDefault());
-        document.addEventListener('selectstart', event => event.preventDefault());
-        document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
-        document.addEventListener('gesturechange', function(e) { e.preventDefault(); });
-        document.addEventListener('gestureend', function(e) { e.preventDefault(); });
+        // ⭐ CONFIGURATION: CHANGE THIS TO YOUR MAIN HOME PAGE URL
+        const MAIN_HOME_URL = "index.html"; 
+
+        // Disable Interactions
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('dragstart', e => e.preventDefault());
+        document.addEventListener('selectstart', e => e.preventDefault());
+        document.addEventListener('gesturestart', e => e.preventDefault());
 
         document.addEventListener('DOMContentLoaded', () => {
             const gameContainer = document.getElementById('gameContainer');
@@ -374,9 +328,7 @@
             let laneSwitchCooldown = 180;
             let lastSwitchTime = 0;
             let lastTimestamp = 0;
-            
             let lastClientWidth = 0;
-            let lastClientHeight = 0;
 
             let roadImage, playerCarImage, coinImage;
             let obstacleImages = [];
@@ -406,36 +358,23 @@
 
             async function init() {
                 resizeGame(true);
-                await preloadAssets(progress => {
-                    progressBar.style.width = `${progress * 100}%`;
-                });
-                
+                await preloadAssets(progress => { progressBar.style.width = `${progress * 100}%`; });
                 gameState = 'menu';
                 menuScreen.style.display = 'flex';
                 loaderScreen.style.transition = "opacity 0.5s ease-out";
                 loaderScreen.style.opacity = 0;
                 setTimeout(() => { loaderScreen.style.display = 'none'; }, 500);
-
                 setupEventListeners();
                 requestAnimationFrame(gameLoop);
             }
 
-            function isMobileDevice() {
-                return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 1024));
-            }
+            function isMobileDevice() { return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 1024)); }
 
             function loadAsset(asset) {
                 if (asset instanceof HTMLImageElement) {
-                    return new Promise((resolve, reject) => {
-                        if (asset.complete) return resolve(asset);
-                        asset.onload = () => resolve(asset);
-                        asset.onerror = reject;
-                    });
+                    return new Promise((resolve, reject) => { if (asset.complete) return resolve(asset); asset.onload = () => resolve(asset); asset.onerror = reject; });
                 } else if (asset instanceof HTMLAudioElement) {
-                    return new Promise((resolve) => {
-                        if (asset.readyState >= 3) return resolve();
-                        asset.addEventListener('canplaythrough', resolve, { once: true });
-                    });
+                    return new Promise((resolve) => { if (asset.readyState >= 3) return resolve(); asset.addEventListener('canplaythrough', resolve, { once: true }); });
                 }
             }
 
@@ -449,24 +388,18 @@
                 onProgress(0);
                 const wrappedPromises = assetPromises.map(p => p.then(() => { loadedCount++; onProgress(loadedCount / totalAssets); }));
                 await Promise.all(wrappedPromises);
-                roadImage = imageElements[0];
-                playerCarImage = imageElements[1];
-                coinImage = imageElements[2];
-                obstacleImages = imageElements.slice(3, 7);
+                roadImage = imageElements[0]; playerCarImage = imageElements[1]; coinImage = imageElements[2]; obstacleImages = imageElements.slice(3, 7);
             }
 
             function setupEventListeners() {
                 const handleResize = () => {
-                    const widthChanged = Math.abs(window.innerWidth - lastClientWidth) > 50;
-                    if (widthChanged) {
+                    if (Math.abs(window.innerWidth - lastClientWidth) > 50) {
                         resizeGame();
-                        if (gameState === 'playing') {
-                            controlContainer.style.display = isMobileDevice() ? 'flex' : 'none';
-                        }
+                        if (gameState === 'playing') controlContainer.style.display = isMobileDevice() ? 'flex' : 'none';
                     }
                 };
                 window.addEventListener('resize', handleResize);
-                window.addEventListener('orientationchange', () => { setTimeout(handleResize, 100); });
+                window.addEventListener('orientationchange', () => setTimeout(handleResize, 100));
 
                 function playClickSound() { soundClick.currentTime = 0; soundClick.play(); }
 
@@ -480,47 +413,34 @@
                     element.addEventListener('touchend', release);
                 }
 
-                const animButtons = [startButton, replayButton, homeButton, backButton, leftButton, rightButton];
-                animButtons.forEach(btn => { if(btn) addPressAnimation(btn); });
+                [startButton, replayButton].forEach(btn => { addPressAnimation(btn); btn.addEventListener('click', () => { playClickSound(); setTimeout(prepareGame, 150); }); });
 
-                // Play/Replay Buttons
-                [startButton, replayButton].forEach(button => {
-                    button.addEventListener('click', () => { playClickSound(); setTimeout(prepareGame, 150); });
-                });
-
-                // Back Button
+                // BACK BUTTON: Go to Main Home
                 backButton.addEventListener('click', (e) => {
                     e.preventDefault();
                     playClickSound();
-                    setTimeout(() => { window.location.href = backButton.href || "#"; }, 150);
+                    setTimeout(() => { window.location.href = MAIN_HOME_URL; }, 150);
                 });
 
-                // Home Button (Reloads Page)
+                // HOME BUTTON: Go to Main Home
                 homeButton.addEventListener('click', (e) => {
                     e.preventDefault();
                     playClickSound();
-                    setTimeout(() => { window.location.reload(); }, 150);
+                    setTimeout(() => { window.location.href = MAIN_HOME_URL; }, 150);
                 });
                 
-                // Controls
+                // CONTROLS
                 const startMove = (direction) => { if (gameState === 'playing') moveDirection = direction; };
                 const endMove = () => { moveDirection = null; };
 
                 leftButton.addEventListener('mousedown', () => startMove('left'));
                 rightButton.addEventListener('mousedown', () => startMove('right'));
                 window.addEventListener('mouseup', endMove);
-
                 leftButton.addEventListener('touchstart', (e) => { if(e.cancelable) e.preventDefault(); startMove('left'); }, { passive: false });
                 rightButton.addEventListener('touchstart', (e) => { if(e.cancelable) e.preventDefault(); startMove('right'); }, { passive: false });
                 window.addEventListener('touchend', endMove);
-
-                window.addEventListener('keydown', e => {
-                    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') startMove('left');
-                    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') startMove('right');
-                });
-                window.addEventListener('keyup', e => {
-                    if ((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') || (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd')) endMove();
-                });
+                window.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') startMove('left'); if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') startMove('right'); });
+                window.addEventListener('keyup', e => { if ((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') || (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd')) endMove(); });
             }
 
             function switchLane(direction) { if (!isSwitchingLanes && Date.now() - lastSwitchTime > laneSwitchCooldown) { isSwitchingLanes = true; if (direction === 'left' && playerCar.lane > 0) playerCar.lane--; else if (direction === 'right' && playerCar.lane < 3) playerCar.lane++; lastSwitchTime = Date.now(); } }
@@ -528,8 +448,7 @@
             function prepareGame() { 
                 gameOverText.classList.remove('game-over-anim'); scorePanel.classList.remove('score-panel-anim'); replayWrapper.classList.remove('fade-in-anim');
                 menuScreen.style.display = 'none'; gameOverScreen.style.display = 'none'; scoreBox.style.display = 'none'; controlContainer.style.display = 'none'; 
-                gameState = 'countdown'; score = 0; roadSpeed = 350; spawnCooldown = 750; 
-                updateScoreDisplay(); obstacles = []; coins = []; popups = []; createPlayerCar(); startCountdown(); 
+                gameState = 'countdown'; score = 0; roadSpeed = 350; spawnCooldown = 750; updateScoreDisplay(); obstacles = []; coins = []; popups = []; createPlayerCar(); startCountdown(); 
             }
             
             function startCountdown() { let count = 3; function showCount() { countdownElem.style.animation = 'none'; void countdownElem.offsetWidth; countdownElem.style.animation = 'countdown-zoom-fade 1s ease-in-out'; countdownElem.textContent = count > 0 ? count : 'GO!'; } soundCountdown.currentTime = 0; soundCountdown.play(); countdownElem.style.display = 'block'; showCount(); const timer = setInterval(() => { count--; if (count >= 0) showCount(); else { clearInterval(timer); countdownElem.style.display = 'none'; startGame(); } }, 1000); }
@@ -553,8 +472,14 @@
                 const carWidth = gameContainer.clientWidth * 0.10; 
                 const carHeight = carWidth * 1.8; 
                 const initialLane = Math.random() < 0.5 ? 1 : 2; 
-                // Adjusted Y position to ensure it is VISIBLY ABOVE the controls
-                playerCar = { img: playerCarImage, width: carWidth, height: carHeight, x: lanePositions[initialLane] - (carWidth / 2), y: gameContainer.clientHeight - carHeight - 250, lane: initialLane }; 
+                playerCar = { img: playerCarImage, width: carWidth, height: carHeight, x: lanePositions[initialLane] - (carWidth / 2), y: 0, lane: initialLane }; 
+                updateCarYPosition(gameContainer.clientHeight);
+            }
+
+            function updateCarYPosition(height) {
+                if(playerCar.height) {
+                    playerCar.y = height - playerCar.height - (height * 0.25);
+                }
             }
             
             let lastSpawnTime = 0;
@@ -579,8 +504,9 @@
             
             function resizeGame(force = false) {
                 if (!force && gameContainer.clientWidth === lastClientWidth && gameContainer.clientHeight === lastClientHeight) return;
-                lastClientWidth = gameContainer.clientWidth; lastClientHeight = gameContainer.clientHeight;
-                const gameWidth = lastClientWidth; const gameHeight = lastClientHeight;
+                lastClientWidth = gameContainer.clientWidth; 
+                const gameWidth = gameContainer.clientWidth; 
+                const gameHeight = gameContainer.clientHeight;
                 canvas.width = gameWidth; canvas.height = gameHeight;
                 const leftBoundaryPercent = 0.18; const rightBoundaryPercent = 0.82;
                 leftBoundary = gameWidth * leftBoundaryPercent; rightBoundary = gameWidth * rightBoundaryPercent;
@@ -589,8 +515,7 @@
                 if (playerCar.width) {
                     const carWidth = gameWidth * 0.10; playerCar.width = carWidth; playerCar.height = carWidth * 1.8;
                     playerCar.x = lanePositions[playerCar.lane] - (carWidth / 2);
-                    // Update player Y on resize to maintain gap
-                    playerCar.y = gameHeight - playerCar.height - 250;
+                    updateCarYPosition(gameHeight);
                 }
             }
             init();
