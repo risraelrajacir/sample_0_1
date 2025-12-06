@@ -2,450 +2,678 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Flappy Bird</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>RACING GAME</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
     <style>
-        html, body {
-            margin: 0; padding: 0; overflow: hidden;
-            width: 100%; height: 100%; background-color: #333;
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            background-color: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica', sans-serif;
         }
-        #game-container {
-            width: 100%; height: 100%; display: flex;
-            justify-content: center; align-items: center;
+
+        #gameWrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        canvas {
-            border: 2px solid #000; background-color: #70c5ce; cursor: pointer;
-            max-width: 100%; max-height: 100%; object-fit: contain;
-            touch-action: none; -webkit-tap-highlight-color: transparent;
-            user-select: none; -webkit-user-select: none;
+        #gameContainer {
+            aspect-ratio: 9 / 16;
+            height: 100%;
+            max-width: 100vw;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.15);
         }
-        #loader-container {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; justify-content: center; align-items: center;
-            background-color: rgba(0, 0, 0, 0.8);
-            z-index: 100; transition: opacity 0.5s ease-out;
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            filter: saturate(115%) brightness(105%) contrast(110%);
         }
-        #loader-content {
-            text-align: center; color: white; font-family: 'Arial Black', sans-serif;
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
         }
-        #progress-bar-container {
-            width: 250px; height: 20px; background-color: #555;
-            border: 2px solid #fff; border-radius: 10px; margin-top: 10px;
+        .ui-layer > * {
+            pointer-events: auto;
         }
-        #progress-bar {
-            width: 0%; height: 100%; background-color: #f7e43b;
-            border-radius: 8px; transition: width 0.1s linear;
+        
+        .ui-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            text-align: center;
+        }
+
+        .ui-screen h1 {
+            font-family: 'Bangers', cursive;
+            font-size: 5rem;
+            letter-spacing: 3px;
+            color: #FFD700;
+            text-shadow: 4px 4px 0 #000, -2px -2px 0 #c56e00;
+        }
+        
+        #menuScreen, #gameOverScreen { display: none; }
+        
+        /* --- ANIMATIONS START --- */
+        
+        /* 1. PULSE / ATTRACT LOOP (Front/Back) */
+        .anim-attract {
+            animation: attract-pulse 1.5s infinite ease-in-out;
+            transform-origin: center;
+        }
+
+        @keyframes attract-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); } 
+            100% { transform: scale(1); }
+        }
+
+        /* 2. CLICK EFFECT */
+        .button-clicked {
+            transform: scale(0.9) !important;
+            filter: brightness(0.8);
+            animation: none !important;
+            transition: transform 0.05s ease-out;
+        }
+
+        /* 3. FADE IN ENTRANCE */
+        .fade-in-anim { 
+            animation: simpleFadeIn 0.5s ease-out 0.8s forwards; 
+        }
+        @keyframes simpleFadeIn { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+
+        /* --- ANIMATIONS END --- */
+
+        .ui-button {
+            cursor: pointer;
+            border: none;
+            background: none;
+            padding: 0;
+            display: block;
+        }
+
+        #startButton { width: 140px; }
+        
+        #replayWrapper {
+            margin-top: 25px;
+            opacity: 0; 
+        }
+        #replayButton { 
+            width: 140px; 
+            display: block;
+        }
+
+        #gameOverText {
+            font-family: 'Bangers', cursive;
+            font-size: 5rem;
+            letter-spacing: 4px;
+            color: #FFD700;
+            text-shadow: 5px 5px 0 #000, -2px -2px 0 #c56e00;
+            margin-bottom: 25px;
+            opacity: 0;
+        }
+        
+        #scorePanel {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0px 8px 15px rgba(0,0,0,0.3);
+            width: 85%;
+            max-width: 400px;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            opacity: 0;
+        }
+
+        .game-over-anim { animation: gameOverBounce 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards; }
+        .score-panel-anim { animation: scorePanelSlideUp 0.5s ease-out 0.4s forwards; }
+        
+        @keyframes gameOverBounce { from { transform: translateY(-100px) scale(0.5); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+        @keyframes scorePanelSlideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .score-display {
+            color: #333;
+            text-align: center;
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica', sans-serif;
+            padding: 0 10px;
+        }
+        .score-display h2 { font-size: 1rem; margin: 0 0 10px 0; color: #666; font-weight: 700; }
+        .score-display p { font-size: 2.5rem; margin: 0; color: #e65100; font-weight: 900; }
+        
+        #scoreBox {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 8px 18px;
+            border-radius: 10px;
+            font-size: 1.8rem;
+            font-weight: 700;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            display: none;
+        }
+
+        /* Controls hidden by default, shown via JS for mobile */
+        #controlContainer {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 50px;
+            display: none; /* Hidden by default */
+            justify-content: space-between;
+            padding: 0 40px;
+            box-sizing: border-box;
+            z-index: 100;
+        }
+        .control-button {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5rem;
+            cursor: pointer;
+            user-select: none;
+            border: none;
+            transition: transform 0.1s ease-out;
+            -webkit-tap-highlight-color: transparent; /* Remove blue highlight on tap */
+        }
+        
+        #countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            font-family: 'Bangers', cursive;
+            color: #FFD700;
+            text-shadow: 5px 5px 15px rgba(0,0,0,0.6);
+            display: none;
+            font-size: 10rem;
+            animation: countdown-zoom-fade 1s ease-in-out;
+        }
+
+        @keyframes countdown-zoom-fade {
+            from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { opacity: 1; }
+            to { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
+        }
+        
+        /* Navigation Buttons */
+        #backButton, #homeButton {
+            position: absolute;
+            top: 20px;
+            transition: transform 0.1s, opacity 0.2s;
+            cursor: pointer;
+            z-index: 100;
+        }
+        #backButton {
+            left: 20px;
+            display: flex;
+            align-items: center;
+            color: white;
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: bold;
+            text-shadow: 1px 1px 3px #000;
+        }
+        #backButton img { width: 24px; height: 24px; margin-right: 8px; }
+        #homeButton { right: 20px; }
+        #homeButton img { width: 32px; height: 32px; }
+        
+        /* Loader */
+        #loaderScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #1a1a1a;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        #loaderText { font-size: 1.5rem; margin-bottom: 20px; }
+        #progressBarContainer {
+            width: 80%;
+            height: 20px;
+            background-color: #444;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #progressBar {
+            width: 0%;
+            height: 100%;
+            background-color: #FFD700;
+            transition: width 0.2s ease-out;
         }
     </style>
 </head>
 <body>
-    <div id="loader-container">
-        <div id="loader-content">
-            <p>Loading Game...</p>
-            <div id="progress-bar-container">
-                <div id="progress-bar"></div>
+    <div id="gameWrapper">
+        <div id="gameContainer">
+            <canvas id="gameCanvas"></canvas>
+            <div class="ui-layer">
+                <div id="loaderScreen">
+                    <p id="loaderText">Loading Game...</p>
+                    <div id="progressBarContainer">
+                        <div id="progressBar"></div>
+                    </div>
+                </div>
+                <div id="menuScreen" class="ui-screen">
+                    <a href="#" id="backButton">
+                        <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/aw_bk_in_24dp_FFFFFF.png?raw=true" alt="Back">
+                        <span>Back to Games</span>
+                    </a>
+                    <h1>RACING GAME</h1>
+                    <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true" id="startButton" class="ui-button anim-attract" alt="Play Game">
+                </div>
+                <div id="gameOverScreen" class="ui-screen">
+                    <a href="#" id="homeButton">
+                        <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_FFFFFF.png?raw=true" alt="Home">
+                    </a>
+                    <h1 id="gameOverText">GAME OVER</h1>
+                    <div id="scorePanel">
+                        <div class="score-display">
+                            <h2>SCORE</h2>
+                            <p id="finalScore">0</p>
+                        </div>
+                        <div class="score-display">
+                            <h2>BEST</h2>
+                            <p id="bestScore">0</p>
+                        </div>
+                    </div>
+                    <div id="replayWrapper">
+                        <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/ry_ne_ui_bn.png?raw=true" id="replayButton" class="ui-button anim-attract" alt="Replay Game">
+                    </div>
+                </div>
+                <div id="countdown"></div>
+                <div id="scoreBox">Score: 0</div>
+                <!-- Controls only shown on Mobile/Tablet via JS -->
+                <div id="controlContainer">
+                    <div id="leftButton" class="control-button">◀</div>
+                    <div id="rightButton" class="control-button">▶</div>
+                </div>
             </div>
         </div>
     </div>
-    <div id="game-container">
-        <canvas id="gameCanvas" width="288" height="512"></canvas>
-    </div>
+    
+    <audio id="soundBackground" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_mc/rg_ge_1_as_mc_1/bg_mc.mp3" preload="auto" loop></audio>
+    <audio id="soundCar" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_sd_es/rg_ge_1_as_sd_es_1/ve_sd_sd_et.mp3" preload="auto" loop></audio>
+    <audio id="soundHit" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_sd_es/rg_ge_1_as_sd_es_1/ve_ht_sd_et.mp3" preload="auto"></audio>
+    <audio id="soundCollect" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_sd_es/rg_ge_1_as_sd_es_1/ct_ce_sd_et.mp3" preload="auto"></audio>
+    <audio id="soundOpening" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_sd_es/rg_ge_1_as_sd_es_1/ge_og_sd_et.mp3" preload="auto"></audio>
+    <audio id="soundCountdown" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/st_bp_ctdn_sd_et.mp3" preload="auto"></audio>
+    <audio id="soundClick" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/ck_sd_et.mp3" preload="auto"></audio>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const gameContainer = document.getElementById('game-container');
-        const loaderContainer = document.getElementById('loader-container');
-        const progressBar = document.getElementById('progress-bar');
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameContainer = document.getElementById('gameContainer');
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            const loaderScreen = document.getElementById('loaderScreen');
+            const progressBar = document.getElementById('progressBar');
+            const scoreBox = document.getElementById('scoreBox');
+            const menuScreen = document.getElementById('menuScreen');
+            const gameOverScreen = document.getElementById('gameOverScreen');
+            const startButton = document.getElementById('startButton');
+            const replayWrapper = document.getElementById('replayWrapper');
+            const replayButton = document.getElementById('replayButton');
+            const finalScoreElem = document.getElementById('finalScore');
+            const bestScoreElem = document.getElementById('bestScore');
+            const countdownElem = document.getElementById('countdown');
+            const controlContainer = document.getElementById('controlContainer');
+            const leftButton = document.getElementById('leftButton');
+            const rightButton = document.getElementById('rightButton');
+            const gameOverText = document.getElementById('gameOverText');
+            const scorePanel = document.getElementById('scorePanel');
+            const homeButton = document.getElementById('homeButton');
+            const backButton = document.getElementById('backButton');
 
-        function resizeGame() {
-            const gameRatio = canvas.width / canvas.height;
-            const containerRatio = gameContainer.clientWidth / gameContainer.clientHeight;
-            if (containerRatio < gameRatio) {
-                canvas.style.width = gameContainer.clientWidth + 'px';
-                canvas.style.height = (gameContainer.clientWidth / gameRatio) + 'px';
-            } else {
-                canvas.style.height = gameContainer.clientHeight + 'px';
-                canvas.style.width = (gameContainer.clientHeight * gameRatio) + 'px';
-            }
-        }
-        window.addEventListener('resize', resizeGame);
-        window.addEventListener('orientationchange', resizeGame);
-        resizeGame();
+            const soundBackground = document.getElementById('soundBackground');
+            const soundCar = document.getElementById('soundCar');
+            const soundHit = document.getElementById('soundHit');
+            const soundCollect = document.getElementById('soundCollect');
+            const soundOpening = document.getElementById('soundOpening');
+            const soundCountdown = document.getElementById('soundCountdown');
+            const soundClick = document.getElementById('soundClick');
 
-        const assets = {
-            bird: [
-                "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bs/bd_ge_1_as_bs_1/be_bd_1.png?raw=true",
-                "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bs/bd_ge_1_as_bs_1/be_bd_2.png?raw=true",
-                "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bs/bd_ge_1_as_bs_1/be_bd_3.png?raw=true",
-                "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bs/bd_ge_1_as_bs_1/be_bd_4.png?raw=true"
-            ],
-            background: "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bgs/bd_ge_1_as_bgs_1/bg_dy_1.png?raw=true",
-            base: "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bes/bd_ge_1_as_bes_1/gd_1.png?raw=true",
-            pipeTop: "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_ps/bd_ge_1_as_ps_1/gn_pe_tp.png?raw=true",
-            pipeBottom: "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_ps/bd_ge_1_as_ps_1/gn_pe_bm.png?raw=true",
-            uiBackground: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/UIbg.png?raw=true",
-            getReady: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/tt_Gt_Ry_ui.png?raw=true",
-            gameOver: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/tt_Ge_Or_ui.png?raw=true",
-            playButton: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true",
-            replayButton: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/ry_ne_ui_bn.png?raw=true",
-            tapSymbol: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/tp_sl_ui.png?raw=true",
-            tapTickSymbol: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/tp_Tk_ui.png?raw=true",
-            homeIcon: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_FFFFFF.png?raw=true",
-            backIcon: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/aw_bk_in_24dp_FFFFFF.png?raw=true",
-            swoosh: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_sd_es/bd_ge_1_as_sd_es_1/sh_sd_et.mp3",
-            flap: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_sd_es/bd_ge_1_as_sd_es_1/fp_sd_et.mp3",
-            point: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_sd_es/bd_ge_1_as_sd_es_1/pt_sd_et.mp3",
-            hit: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_sd_es/bd_ge_1_as_sd_es_1/ht_sd_et.mp3",
-            die: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_sd_es/bd_ge_1_as_sd_es_1/de_sd_et.mp3",
-            click: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/ck_sd_et.mp3"
-        };
+            let gameState = 'loading';
+            let score = 0;
+            let roadY = 0;
+            let roadSpeed = 350;
+            let playerCar = {};
+            let obstacles = [];
+            let coins = [];
+            let popups = [];
+            let lastUsedObstacleIndex = -1;
+            
+            let moveDirection = null;
+            let isSwitchingLanes = false;
+            let laneSwitchCooldown = 180;
+            let lastSwitchTime = 0;
+            let lastTimestamp = 0;
 
-        const images = {};
-        const sounds = {};
-        let totalAssets = 0;
-        let assetsLoaded = 0;
+            let roadImage, playerCarImage, coinImage;
+            let obstacleImages = [];
+            
+            const roadImgSrc = 'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_rs/rg_ge_1_as_rs_1/rd_2.png?raw=true';
+            const playerCarImgSrc = 'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_pr_cs/rg_ge_1_as_pr_cs_1/pr_cr_1.png?raw=true';
+            const coinImgSrc = 'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_cs/rg_ge_1_as_cs_1/cn_ce.gif?raw=true';
+            const obstacleSources = [
+                'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_os/rg_ge_1_as_os_1/wecr_oe.png?raw=true',
+                'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_os/rg_ge_1_as_os_1/oecr_oe.png?raw=true',
+                'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_os/rg_ge_1_as_os_1/gncr_oe.png?raw=true',
+                'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_os/rg_ge_1_as_os_1/rdcr_oe.png?raw=true',
+            ];
+            const uiImageSources = [
+                'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true',
+                'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/ry_ne_ui_bn.png?raw=true',
+                'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_FFFFFF.png?raw=true',
+                'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/aw_bk_in_24dp_FFFFFF.png?raw=true'
+            ];
+            const soundSources = [soundBackground, soundCar, soundHit, soundCollect, soundOpening, soundCountdown, soundClick];
+            
+            let leftBoundary, rightBoundary;
+            let lanePositions = [];
+            let spawnCooldown = 750;
+            let minSpawnCooldown = 450;
+            let speedAcceleration = 8;
 
-        function updateLoader() {
-            assetsLoaded++;
-            const progress = (assetsLoaded / totalAssets) * 100;
-            progressBar.style.width = progress + '%';
-
-            if (assetsLoaded === totalAssets) {
-                main(); 
+            async function init() {
+                resizeGame();
+                await preloadAssets(progress => {
+                    progressBar.style.width = `${progress * 100}%`;
+                });
+                
+                gameState = 'menu';
+                menuScreen.style.display = 'flex';
+                loaderScreen.style.transition = "opacity 0.5s ease-out";
+                loaderScreen.style.opacity = 0;
                 setTimeout(() => {
-                    loaderContainer.style.opacity = '0';
-                    setTimeout(() => {
-                        loaderContainer.style.display = 'none';
-                    }, 500);
-                }, 200);
+                    loaderScreen.style.display = 'none';
+                }, 500);
+
+                setupEventListeners();
+                requestAnimationFrame(gameLoop);
             }
-        }
 
-        function loadAssets() {
-            const imageKeys = ['background', 'base', 'pipeTop', 'pipeBottom', 'uiBackground', 'getReady', 'gameOver', 'playButton', 'replayButton', 'tapSymbol', 'tapTickSymbol', 'homeIcon', 'backIcon'];
-            const soundKeys = ['swoosh', 'flap', 'point', 'hit', 'die', 'click'];
-            totalAssets = imageKeys.length + assets.bird.length + soundKeys.length;
-            
-            imageKeys.forEach(key => { images[key] = new Image(); images[key].src = assets[key]; images[key].onload = updateLoader; });
-            images.bird = assets.bird.map(src => { const img = new Image(); img.src = src; img.onload = updateLoader; return img; });
-            soundKeys.forEach(key => {
-                sounds[key] = new Audio(assets[key]);
-                sounds[key].addEventListener('canplaythrough', updateLoader, { once: true });
-            });
-        }
-        
-        function playSound(soundKey) {
-            const sound = sounds[soundKey];
-            if (sound) {
-                sound.currentTime = 0;
-                sound.play().catch(e => {});
+            // Function to detect Mobile or Tablet devices
+            function isMobileDevice() {
+                return (('ontouchstart' in window) || 
+                        (navigator.maxTouchPoints > 0) || 
+                        (window.innerWidth <= 1024));
             }
-        }
-        
-        function main() {
-            const MAIN_HOME_URL = "index.html"; 
-            let frames = 0;
-            const DEGREE = Math.PI / 180;
-            const state = { current: 0, getReady: 0, instructions: 1, game: 2, over: 3 };
 
-            const flash = {
-                alpha: 0, speed: 0.1,
-                start: function() { this.alpha = 0.7; },
-                update: function() { this.alpha = Math.max(0, this.alpha - this.speed); },
-                draw: function() {
-                    if (this.alpha > 0) {
-                        ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    }
-                },
-                reset: function() { this.alpha = 0; }
-            };
-
-            const transition = {
-                alpha: 0, speed: 0.05, active: false, targetState: -1,
-                start: function(target) {
-                    if (this.active) return;
-                    this.active = true; this.isFadingOut = true; this.targetState = target; playSound('swoosh');
-                },
-                update: function() {
-                    if (!this.active) return;
-                    if (this.isFadingOut) {
-                        this.alpha = Math.min(1, this.alpha + this.speed);
-                        if (this.alpha >= 1) {
-                            this.isFadingOut = false; this.isFadingIn = true;
-                            if (state.current === state.over) resetGame();
-                            state.current = this.targetState;
-                        }
-                    } else if (this.isFadingIn) {
-                        this.alpha = Math.max(0, this.alpha - this.speed);
-                        if (this.alpha <= 0) { this.isFadingIn = false; this.active = false; }
-                    }
-                },
-                draw: function() {
-                    if (this.alpha > 0) {
-                        ctx.fillStyle = `rgba(0, 0, 0, ${this.alpha})`;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    }
+            function loadAsset(asset) {
+                if (asset instanceof HTMLImageElement) {
+                    return new Promise((resolve, reject) => {
+                        if (asset.complete) return resolve(asset);
+                        asset.onload = () => resolve(asset);
+                        asset.onerror = reject;
+                    });
+                } else if (asset instanceof HTMLAudioElement) {
+                    return new Promise((resolve) => {
+                        if (asset.readyState >= 3) return resolve();
+                        asset.addEventListener('canplaythrough', resolve, { once: true });
+                    });
                 }
-            };
+            }
 
-            const bg = { draw: () => ctx.drawImage(images.background, 0, 0, canvas.width, canvas.height) };
-            
-            const base = {
-                x: 0, y: canvas.height - 112, w: 336, h: 112, dx: 2,
-                draw: function() {
-                    ctx.drawImage(images.base, this.x, this.y, this.w, this.h);
-                    ctx.drawImage(images.base, this.x + this.w, this.y, this.w, this.h);
-                },
-                update: function() {
-                    if (state.current !== state.over) {
-                        this.x -= this.dx;
-                        if (this.x <= -this.w) this.x = 0;
-                    }
-                }
-            };
+            async function preloadAssets(onProgress) {
+                const imageElements = [
+                    new Image(), new Image(), new Image(),
+                    ...obstacleSources.map(() => new Image()),
+                    ...uiImageSources.map(() => new Image())
+                ];
+                const imageSrcs = [roadImgSrc, playerCarImgSrc, coinImgSrc, ...obstacleSources, ...uiImageSources];
+                imageSrcs.forEach((src, i) => imageElements[i].src = src);
 
-            const bird = {
-                x: 80, y: 190, w: 34, h: 24, frame: 0,
-                gravity: 0.20, jump: 4.2, speed: 0, rotation: 0,
-                draw: function() {
-                    let birdImg = images.bird[this.frame];
-                    ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
-                    ctx.drawImage(birdImg, -this.w / 2, -this.h / 2, this.w, this.h);
-                    ctx.restore();
-                },
-                flap: function() { this.speed = -this.jump; },
-                update: function() {
-                    if (state.current === state.getReady || state.current === state.instructions) {
-                        this.frame = Math.floor((frames / 5) % images.bird.length);
-                        this.y = 190 + Math.sin(frames * DEGREE * 5) * 8;
-                        this.rotation = 0;
-                    } else {
-                        if (state.current !== state.over || this.y < base.y - this.h/2) {
-                            this.speed += this.gravity;
-                            this.y += this.speed;
-                        }
-
-                        if (this.y + this.h / 2 >= base.y) {
-                            this.y = base.y - this.h / 2;
-                            if (state.current === state.game) {
-                                state.current = state.over; playSound('hit'); flash.start(); gameOverSequence.start();
-                            }
-                        }
-
-                        if (state.current === state.over) {
-                            this.frame = 1;
-                            if (this.y < base.y - this.h/2) {
-                               this.rotation = Math.min(90 * DEGREE, this.rotation + 4 * DEGREE);
-                            }
-                        } else {
-                            this.frame = Math.floor((frames / 5) % images.bird.length);
-                            if (this.speed >= 0) {
-                                this.rotation = Math.min(90 * DEGREE, this.rotation + 4 * DEGREE);
-                            } else {
-                                this.rotation = -25 * DEGREE;
-                            }
-                        }
-                    }
-                },
-                reset: function() { this.speed = 0; this.y = 190; }
-            };
-
-            const pipes = {
-                position: [], w: 52, h: 320, gap: 100, maxYPos: -40, dx: 2,
-                draw: function() { for (let p of this.position) { ctx.drawImage(images.pipeTop, p.x, p.y); ctx.drawImage(images.pipeBottom, p.x, p.y + this.h + this.gap); }},
-                update: function() {
-                    if (state.current !== state.game) return;
-                    if (frames % 100 === 0) this.position.push({ x: canvas.width, y: this.maxYPos - (Math.random() * 200), passed: false });
-                    for (let i = this.position.length - 1; i >= 0; i--) {
-                        let p = this.position[i];
-                        p.x -= this.dx;
-                        let b = { left: bird.x - bird.w/2, right: bird.x + bird.w/2, top: bird.y - bird.h/2, bottom: bird.y + bird.h/2 };
-                        if (b.right > p.x && b.left < p.x + this.w && (b.top < p.y + this.h || b.bottom > p.y + this.h + this.gap)) {
-                            state.current = state.over; playSound('hit'); playSound('die'); flash.start(); gameOverSequence.start();
-                            bird.speed = 0;
-                        }
-                        if (p.x + this.w < bird.x && !p.passed) { score.value++; playSound('point'); p.passed = true; }
-                        if (p.x + this.w < 0) this.position.splice(i, 1);
-                    }
-                },
-                reset: function() { this.position = []; }
-            };
-            
-            const ui = {
-                titleSize: { w: 225, h: 45 }, panelSize: { w: 225, h: 112 },
-                buttonSize: { w: 150, h: 150 }, tapSymbolSize: { w: 80, h: 70 },
-                iconSize: { w: 24, h: 24},
-                tapSymbolAlpha: 1.0, isFadingTapSymbol: false,
-                isBackPressed: false, isHomePressed: false, isPlayPressed: false, isReplayPressed: false,
+                const assetPromises = [...imageElements.map(loadAsset), ...soundSources.map(loadAsset)];
                 
-                get playRect() { return { x: (canvas.width - this.buttonSize.w) / 2, y: 280, ...this.buttonSize }; },
-                get replayRect() { return { x: (canvas.width - this.buttonSize.w) / 2, y: 310, ...this.buttonSize }; },
-                get backRect() { return { x: 10, y: 10, w: 160, h: 30 }; },
-                get homeRect() { return { x: canvas.width - this.iconSize.w - 10, y: 10, ...this.iconSize }; },
+                let loadedCount = 0;
+                const totalAssets = assetPromises.length;
+                onProgress(0);
 
-                draw: function() {
-                    if (state.current === state.getReady) {
-                        this.drawPulsingButton(images.playButton, this.playRect, frames, this.isPlayPressed);
-                        ctx.drawImage(images.getReady, (canvas.width - this.titleSize.w) / 2, 100, this.titleSize.w, this.titleSize.h);
-                        this.drawBackButton();
-                    } else if (state.current === state.instructions || this.isFadingTapSymbol) {
-                        this.drawTapAnimation();
-                    } else if (state.current === state.over) {
-                        gameOverSequence.draw();
-                    }
-                },
-                drawBackButton: function() {
-                    const scale = this.isBackPressed ? 0.9 : 1.0;
-                    ctx.save(); ctx.translate(this.backRect.x, this.backRect.y + this.backRect.h / 2);
-                    ctx.scale(scale, scale);
-                    ctx.drawImage(images.backIcon, 0, -this.iconSize.h / 2, this.iconSize.w, this.iconSize.h);
-                    drawTextWithShadow("Back to Games", this.iconSize.w + 5, 5, "16px 'Arial Black', sans-serif", "left");
-                    ctx.restore();
-                },
-                drawPulsingButton: function(image, rect, frameCount, isPressed) {
-                    const scale = isPressed ? 0.9 : Math.sin(frameCount * DEGREE * 5) * 0.05 + 1;
-                    ctx.save(); ctx.translate(rect.x + rect.w / 2, rect.y + rect.h / 2);
-                    ctx.scale(scale, scale); ctx.drawImage(image, -rect.w / 2, -rect.h / 2, rect.w, rect.h); ctx.restore();
-                },
-                drawTapAnimation: function() {
-                    ctx.save(); ctx.globalAlpha = this.tapSymbolAlpha;
-                    let isTicked = Math.floor(frames / 20) % 2 === 0;
-                    let currentSymbol = isTicked ? images.tapTickSymbol : images.tapSymbol;
-                    let pulse = Math.sin(frames * DEGREE * 8) * 0.05 + 1;
-                    let w = this.tapSymbolSize.w * pulse, h = this.tapSymbolSize.h * pulse;
-                    ctx.drawImage(currentSymbol, (canvas.width - w) / 2, 250, w, h); ctx.restore();
-                },
-                drawHomeIcon: function() {
-                    const scale = this.isHomePressed ? 0.9 : 1.0;
-                    const r = this.homeRect;
-                    ctx.save();
-                    ctx.translate(r.x + r.w / 2, r.y + r.h / 2);
-                    ctx.scale(scale, scale);
-                    ctx.drawImage(images.homeIcon, -r.w / 2, -r.h / 2, r.w, r.h);
-                    ctx.restore();
-                },
-                update: function() {
-                    if (this.isFadingTapSymbol) {
-                        this.tapSymbolAlpha -= 0.05;
-                        if (this.tapSymbolAlpha <= 0) { this.isFadingTapSymbol = false; }
-                    }
-                },
-                reset: function() { this.tapSymbolAlpha = 1.0; this.isFadingTapSymbol = false; }
-            };
-
-            const gameOverSequence = {
-                step: 0, timer: 0, panelY: canvas.height, panelTargetY: 180, panelSpeed: 15,
-                start: function() { this.step = 1; this.timer = 0; score.checkNewBest(); },
-                update: function() {
-                    if (this.step === 0) return; this.timer++;
-                    if (this.step === 1 && this.timer > 30) { this.step = 2; }
-                    if (this.step === 2) {
-                        this.panelY = Math.max(this.panelTargetY, this.panelY - this.panelSpeed);
-                        if (this.panelY === this.panelTargetY) this.step = 3;
-                    }
-                    if (this.step === 3 && this.timer > 90) { this.step = 4; }
-                },
-                draw: function() {
-                    if (this.step >= 2) { ctx.drawImage(images.gameOver, (canvas.width - ui.titleSize.w) / 2, 120, ui.titleSize.w, ui.titleSize.h); }
-                    if (this.step >= 2) { ctx.drawImage(images.uiBackground, (canvas.width - ui.panelSize.w) / 2, this.panelY, ui.panelSize.w, ui.panelSize.h); }
-                    if (this.step === 4) {
-                        ui.drawPulsingButton(images.replayButton, ui.replayRect, frames, ui.isReplayPressed);
-                        ui.drawHomeIcon();
-                    }
-                },
-                reset: function() { this.step = 0; this.timer = 0; this.panelY = canvas.height; }
-            };
-
-            const score = {
-                best: parseInt(localStorage.getItem('flappybird_best')) || 0, value: 0, newBest: false,
-                draw: function() {
-                    if (state.current === state.game) { drawTextWithShadow(this.value, canvas.width / 2, 50, "35px 'Arial Black', sans-serif", "center"); }
-                    else if (state.current === state.over && gameOverSequence.step >= 2) {
-                        drawTextWithShadow("Score", 80, gameOverSequence.panelY + 42, "20px 'Arial Black', sans-serif", "left");
-                        drawTextWithShadow("Best", 80, gameOverSequence.panelY + 82, "20px 'Arial Black', sans-serif", "left");
-                        drawTextWithShadow(this.value, 210, gameOverSequence.panelY + 42, "20px 'Arial Black', sans-serif", "right");
-                        drawTextWithShadow(this.best, 210, gameOverSequence.panelY + 82, "20px 'Arial Black', sans-serif", "right");
-                        if(this.newBest && Math.floor(frames / 20) % 2 === 0){ drawTextWithShadow("NEW", 125, gameOverSequence.panelY + 82, "16px 'Arial Black', sans-serif", "left"); }
-                    }
-                },
-                checkNewBest: function() {
-                    if (this.value > this.best) {
-                        this.best = this.value;
-                        localStorage.setItem('flappybird_best', this.best);
-                        this.newBest = true;
-                    } else {
-                        this.newBest = false;
-                    }
-                },
-                reset: function() { this.value = 0; this.newBest = false; }
-            };
-            
-            function drawTextWithShadow(text, x, y, font, align){
-                ctx.font = font; ctx.textAlign = align;
-                ctx.fillStyle = "#000"; ctx.fillText(text, x + 2, y + 2);
-                ctx.fillStyle = "#FFF"; ctx.fillText(text, x, y);
-            }
-
-            function getMousePos(canvasEl, evt) {
-                const rect = canvasEl.getBoundingClientRect();
-                const scaleX = canvasEl.width / rect.width;
-                const scaleY = canvasEl.height / rect.height;
-                const clientX = evt.clientX || (evt.touches && evt.touches[0].clientX);
-                const clientY = evt.clientY || (evt.touches && evt.touches[0].clientY);
-                return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-            }
-            function isInside(pos, rect) { return pos.x > rect.x && pos.x < rect.x + rect.w && pos.y < rect.y + rect.h && pos.y > rect.y; }
-
-            function handleInput() {
-                if (state.current === state.instructions || state.current === state.game) {
-                    if (state.current === state.instructions) {
-                        ui.isFadingTapSymbol = true;
-                        state.current = state.game;
-                    }
-                    bird.flap(); playSound('flap');
-                }
-            }
-            
-            function processClick(evt) {
-                if (transition.active) return;
-                const pos = getMousePos(canvas, evt);
+                const wrappedPromises = assetPromises.map(p => 
+                    p.then(() => {
+                        loadedCount++;
+                        onProgress(loadedCount / totalAssets);
+                    })
+                );
                 
-                if (state.current === state.getReady && isInside(pos, ui.backRect)) {
-                    playSound('click'); ui.isBackPressed = true; setTimeout(() => { ui.isBackPressed = false; window.location.href = MAIN_HOME_URL; }, 150);
-                } else if (state.current === state.getReady && isInside(pos, ui.playRect)) {
-                    playSound('click'); ui.isPlayPressed = true;
-                    setTimeout(() => { ui.isPlayPressed = false; transition.start(state.instructions); }, 150);
-                } else if (state.current === state.over && gameOverSequence.step === 4 && isInside(pos, ui.homeRect)) {
-                    playSound('click'); ui.isHomePressed = true;
-                    setTimeout(() => { ui.isHomePressed = false; window.location.href = MAIN_HOME_URL; }, 150);
-                } else if (state.current === state.over && gameOverSequence.step === 4 && isInside(pos, ui.replayRect)) {
-                    playSound('click'); ui.isReplayPressed = true;
-                    setTimeout(() => { ui.isReplayPressed = false; transition.start(state.getReady); }, 150);
+                await Promise.all(wrappedPromises);
+
+                roadImage = imageElements[0];
+                playerCarImage = imageElements[1];
+                coinImage = imageElements[2];
+                obstacleImages = imageElements.slice(3, 7);
+            }
+
+            function setupEventListeners() {
+                window.addEventListener('resize', () => {
+                    resizeGame();
+                    // Dynamically hide/show controls if resizing from PC to Mobile emulation
+                    if (gameState === 'playing') {
+                        controlContainer.style.display = isMobileDevice() ? 'flex' : 'none';
+                    }
+                });
+
+                function playClickSound() {
+                    soundClick.currentTime = 0;
+                    soundClick.play();
+                }
+
+                function addPressAnimation(element) {
+                    const press = () => element.classList.add('button-clicked');
+                    const release = () => setTimeout(() => element.classList.remove('button-clicked'), 100);
+
+                    element.addEventListener('mousedown', press);
+                    element.addEventListener('touchstart', (e) => { 
+                        press(); 
+                    }, { passive: true });
+                    
+                    element.addEventListener('mouseup', release);
+                    element.addEventListener('mouseleave', release);
+                    element.addEventListener('touchend', release);
+                }
+
+                const animButtons = [startButton, replayButton, homeButton, backButton, leftButton, rightButton];
+                animButtons.forEach(btn => {
+                    if(btn) addPressAnimation(btn);
+                });
+
+                const clickButtons = [startButton, replayButton];
+                clickButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        playClickSound();
+                        setTimeout(prepareGame, 150); 
+                    });
+                });
+
+                const navButtons = [homeButton, backButton];
+                navButtons.forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        playClickSound();
+                        setTimeout(() => {
+                            window.location.href = button.href || "#";
+                        }, 150);
+                    });
+                });
+                
+                // CONTROL LOGIC
+                const startMove = (direction) => { if (gameState === 'playing') moveDirection = direction; };
+                const endMove = () => { moveDirection = null; };
+
+                // PC Mouse Events
+                leftButton.addEventListener('mousedown', () => startMove('left'));
+                rightButton.addEventListener('mousedown', () => startMove('right'));
+                window.addEventListener('mouseup', endMove);
+
+                // Mobile Touch Events (Passive false to prevent scrolling/zooming)
+                leftButton.addEventListener('touchstart', (e) => { 
+                    if(e.cancelable) e.preventDefault(); // Prevents mouse emulation and ghost clicks
+                    startMove('left'); 
+                }, { passive: false });
+                
+                rightButton.addEventListener('touchstart', (e) => { 
+                    if(e.cancelable) e.preventDefault(); 
+                    startMove('right'); 
+                }, { passive: false });
+                
+                window.addEventListener('touchend', endMove);
+
+                window.addEventListener('keydown', e => {
+                    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') startMove('left');
+                    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') startMove('right');
+                });
+                window.addEventListener('keyup', e => {
+                    if ((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') || (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd')) {
+                        endMove();
+                    }
+                });
+            }
+            function switchLane(direction) { if (!isSwitchingLanes && Date.now() - lastSwitchTime > laneSwitchCooldown) { isSwitchingLanes = true; if (direction === 'left' && playerCar.lane > 0) playerCar.lane--; else if (direction === 'right' && playerCar.lane < 3) playerCar.lane++; lastSwitchTime = Date.now(); } }
+            
+            function prepareGame() { 
+                gameOverText.classList.remove('game-over-anim'); 
+                scorePanel.classList.remove('score-panel-anim'); 
+                replayWrapper.classList.remove('fade-in-anim');
+                
+                menuScreen.style.display = 'none'; 
+                gameOverScreen.style.display = 'none'; 
+                scoreBox.style.display = 'none'; 
+                controlContainer.style.display = 'none'; 
+                gameState = 'countdown'; 
+                score = 0; 
+                roadSpeed = 350; 
+                spawnCooldown = 750; 
+                updateScoreDisplay(); 
+                obstacles = []; 
+                coins = []; 
+                popups = []; 
+                createPlayerCar(); 
+                startCountdown(); 
+            }
+            
+            function startCountdown() { let count = 3; function showCount() { countdownElem.style.animation = 'none'; void countdownElem.offsetWidth; countdownElem.style.animation = 'countdown-zoom-fade 1s ease-in-out'; countdownElem.textContent = count > 0 ? count : 'GO!'; } soundCountdown.currentTime = 0; soundCountdown.play(); countdownElem.style.display = 'block'; showCount(); const timer = setInterval(() => { count--; if (count >= 0) showCount(); else { clearInterval(timer); countdownElem.style.display = 'none'; startGame(); } }, 1000); }
+            
+            function startGame() { 
+                gameState = 'playing'; 
+                scoreBox.style.display = 'block'; 
+                
+                // CHECK IF MOBILE OR TABLET TO SHOW CONTROLS
+                if (isMobileDevice()) {
+                    controlContainer.style.display = 'flex';
                 } else {
-                    handleInput();
+                    controlContainer.style.display = 'none';
+                }
+
+                soundOpening.volume = 0.5; soundOpening.play(); 
+                soundCar.volume = 0.9; soundCar.currentTime = 0; soundCar.play(); 
+                soundBackground.volume = 0.3; soundBackground.currentTime = 0; soundBackground.play(); 
+            }
+            
+            function triggerGameOver() { 
+                if (gameState !== 'playing') return; 
+                soundHit.play(); 
+                gameState = 'gameOver'; 
+                soundCar.pause(); 
+                soundBackground.pause(); 
+                const finalScore = Math.floor(score); 
+                const targetBestScore = (Math.floor(finalScore / 100) + 1) * 100; 
+                finalScoreElem.textContent = finalScore; 
+                bestScoreElem.textContent = targetBestScore; 
+                
+                gameOverScreen.style.display = 'flex'; 
+                gameOverText.classList.add('game-over-anim'); 
+                scorePanel.classList.add('score-panel-anim'); 
+                replayWrapper.classList.add('fade-in-anim');
+                
+                controlContainer.style.display = 'none'; 
+                scoreBox.style.display = 'none'; 
+            }
+            
+            function createPlayerCar() { const carWidth = gameContainer.clientWidth * 0.10; const carHeight = carWidth * 1.8; const initialLane = Math.random() < 0.5 ? 1 : 2; playerCar = { img: playerCarImage, width: carWidth, height: carHeight, x: lanePositions[initialLane] - (carWidth / 2), y: gameContainer.clientHeight - carHeight - 160, lane: initialLane }; }
+            let lastSpawnTime = 0;
+            function manageSpawns(timestamp) { if (timestamp - lastSpawnTime > spawnCooldown) { if (!obstacles.length || obstacles[obstacles.length-1].y > gameContainer.clientHeight * 0.4) { spawnTrafficWave(); lastSpawnTime = timestamp; } } if ((!coins.length || coins[coins.length-1].y > gameContainer.clientHeight * 0.5) && Math.random() < 0.025) { spawnCoin(); } }
+            function spawnTrafficWave() { const carWidth = gameContainer.clientWidth * 0.10; let availableLanes = [0, 1, 2, 3]; for (const obs of obstacles) { if (obs.y < carWidth * 3.5) availableLanes = availableLanes.filter(lane => Math.abs(lane - obs.lane) > 1); } availableLanes.sort(() => Math.random() - 0.5); const numCarsToSpawn = Math.random() < 0.6 ? 1 : 2; for (let i = 0; i < numCarsToSpawn && availableLanes.length > 0; i++) { spawnObstacle(carWidth, availableLanes.pop()); } }
+            function spawnObstacle(carWidth, laneIndex) { const carHeight = carWidth * 1.8; let obstacleIndex = Math.floor(Math.random() * obstacleSources.length); if (obstacleIndex === lastUsedObstacleIndex) obstacleIndex = (obstacleIndex + 1) % obstacleSources.length; lastUsedObstacleIndex = obstacleIndex; obstacles.push({ img: obstacleImages[obstacleIndex], width: carWidth, height: carHeight, x: lanePositions[laneIndex] - (carWidth / 2), y: -carHeight * 2, speed: roadSpeed * 0.4 + Math.random() * 100, lane: laneIndex }); }
+            function spawnCoin() { const coinSize = gameContainer.clientWidth * 0.09; const laneIndex = Math.floor(Math.random() * 4); coins.push({ img: coinImage, width: coinSize, height: coinSize, x: lanePositions[laneIndex] - (coinSize / 2), y: -coinSize, speed: roadSpeed * 0.9 }); }
+            function gameLoop(timestamp) { if (!lastTimestamp) lastTimestamp = timestamp; const deltaTime = (timestamp - lastTimestamp) / 1000; lastTimestamp = timestamp; ctx.clearRect(0, 0, canvas.width, canvas.height); drawRoad(deltaTime); if (gameState === 'menu') {} else if (gameState === 'playing' || gameState === 'countdown') { movePlayer(); updateGameObjects(deltaTime); drawGameObjects(); if(gameState === 'playing') { checkCollisions(); manageSpawns(Date.now()); const scoreFactor = Math.min(score / 500, 1); roadSpeed += (speedAcceleration + (scoreFactor * 12)) * deltaTime; if (spawnCooldown > minSpawnCooldown) spawnCooldown -= 0.1; score += (roadSpeed / 100) * deltaTime; updateScoreDisplay(); } } requestAnimationFrame(gameLoop); }
+            function drawRoad(deltaTime) { if (!roadImage) return; let currentSpeed = 0; if (gameState === 'playing' || gameState === 'countdown') currentSpeed = roadSpeed; else if (gameState === 'menu') currentSpeed = 120; roadY = (roadY + currentSpeed * deltaTime) % canvas.height; ctx.drawImage(roadImage, 0, roadY, canvas.width, canvas.height); ctx.drawImage(roadImage, 0, roadY - canvas.height, canvas.width, canvas.height); }
+            function movePlayer() { if (playerCar.lane === undefined) return; if (moveDirection && !isSwitchingLanes) switchLane(moveDirection); const targetX = lanePositions[playerCar.lane] - (playerCar.width / 2); const dx = targetX - playerCar.x; playerCar.x += dx * 0.3; if (Math.abs(dx) < 1) { playerCar.x = targetX; isSwitchingLanes = false; } }
+            function updateGameObjects(deltaTime) { const update = (obj) => { obj.y += obj.speed * deltaTime; }; obstacles.forEach(update); coins.forEach(update); popups.forEach(p => { p.y -= 50 * deltaTime; p.alpha -= 1.5 * deltaTime; }); obstacles = obstacles.filter(obj => obj.y < canvas.height); coins = coins.filter(obj => obj.y < canvas.height); popups = popups.filter(p => p.alpha > 0); }
+            function drawGameObjects() { for (const obj of coins) ctx.drawImage(obj.img, obj.x, obj.y, obj.width, obj.height); for (const obj of obstacles) ctx.drawImage(obj.img, obj.x, obj.y, obj.width, obj.height); if (playerCar.img) ctx.drawImage(playerCar.img, playerCar.x, playerCar.y, playerCar.width, playerCar.height); ctx.font = "bold 2rem 'Bangers', cursive"; ctx.fillStyle = "#FFD700"; ctx.textAlign = "center"; for (const p of popups) { ctx.globalAlpha = p.alpha; ctx.fillText(p.text, p.x, p.y); } ctx.globalAlpha = 1.0; }
+            function checkCollisions() { if (!playerCar.width) return; for (const obs of obstacles) if (isColliding(playerCar, obs)) { triggerGameOver(); return; } for (let i = coins.length - 1; i >= 0; i--) { const coin = coins[i]; if (isColliding(playerCar, coin)) { score += 100; popups.push({ text: "+100", x: coin.x + coin.width/2, y: coin.y, alpha: 1 }); soundCollect.volume = 0.5; soundCollect.currentTime = 0; soundCollect.play(); coins.splice(i, 1); } } }
+            function isColliding(rect1, rect2) { return rect1.x < rect2.x + rect2.width && rect1.x + rect1.width > rect2.x && rect1.y < rect2.y + rect2.height && rect1.y + rect1.height > rect2.y; }
+            function updateScoreDisplay() { scoreBox.textContent = `Score: ${Math.floor(score)}`; }
+            function resizeGame() {
+                const gameWidth = gameContainer.clientWidth;
+                const gameHeight = gameContainer.clientHeight;
+                canvas.width = gameWidth; canvas.height = gameHeight;
+                const leftBoundaryPercent = 0.18;
+                const rightBoundaryPercent = 0.82;
+                leftBoundary = gameWidth * leftBoundaryPercent;
+                rightBoundary = gameWidth * rightBoundaryPercent;
+                const roadWidth = rightBoundary - leftBoundary;
+                const laneWidth = roadWidth / 4;
+                lanePositions = [
+                    leftBoundary + laneWidth * 0.5, leftBoundary + laneWidth * 1.5,
+                    leftBoundary + laneWidth * 2.5, leftBoundary + laneWidth * 3.5,
+                ];
+                if (playerCar.width) {
+                    const carWidth = gameWidth * 0.10;
+                    playerCar.width = carWidth;
+                    playerCar.height = carWidth * 1.8;
+                    playerCar.x = lanePositions[playerCar.lane] - (carWidth / 2);
+                    playerCar.y = gameHeight - playerCar.height - 160;
                 }
             }
-            
-            canvas.addEventListener('click', processClick);
-            canvas.addEventListener('touchstart', (e) => { e.preventDefault(); processClick(e); }, { passive: false });
-            
-            document.addEventListener('keydown', (e) => { if (e.code === 'Space') handleInput(); });
-            
-            function resetGame() { bird.reset(); pipes.reset(); score.reset(); ui.reset(); flash.reset(); gameOverSequence.reset(); }
-            function update() { bird.update(); pipes.update(); base.update(); ui.update(); transition.update(); flash.update(); gameOverSequence.update(); }
-            function draw() { bg.draw(); pipes.draw(); bird.draw(); base.draw(); ui.draw(); score.draw(); flash.draw(); transition.draw(); }
-
-            function loop() {
-                update(); draw(); frames++; requestAnimationFrame(loop);
-            }
-            // Start the loop after the main function is defined but before loadAssets is called.
-            loop();
-        }
-
-        // Start loading assets right away.
-        loadAssets();
+            init();
+        });
     </script>
 </body>
 </html>
