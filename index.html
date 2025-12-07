@@ -24,70 +24,102 @@
             touch-action: none;
             -webkit-user-select: none;
             user-select: none;
+            /* Fix for blue highlight on tap */
+            -webkit-tap-highlight-color: transparent;
         }
         #game-container {
             position: relative;
             box-shadow: 0 0 30px rgba(0,0,0,0.6);
             overflow: hidden;
             flex-shrink: 0;
-            /* Removed pixelated rendering here to allow fonts to be smooth/HD */
+            border-radius: 4px;
         }
         canvas {
             width: 100%;
             height: 100%;
             display: block;
         }
+        
+        /* CONTROLS CONTAINER - Default Hidden */
         #mobile-controls-container {
             position: absolute;
             bottom: 20px;
             left: 0;
             width: 100%;
-            display: none;
+            display: none; /* Hidden by default */
             flex-direction: column;
             align-items: center;
-            gap: 15px;
+            gap: 10px; /* Reduced gap to keep text close to buttons */
             z-index: 200;
+            pointer-events: none; /* Let clicks pass through empty areas */
         }
+        
         #mobile-instructions {
-            color: #fff;
+            color: rgba(255, 255, 255, 0.7);
             font-family: var(--font-ui);
             font-size: 16px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            opacity: 0.8;
+            margin: 0;
+            padding-bottom: 5px;
+            text-shadow: 0 2px 2px rgba(0,0,0,0.8);
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
+
         #dpad-container {
             display: grid;
             grid-template-areas: ". up ." "left . right" ". down .";
             gap: 12px;
+            pointer-events: auto; /* Re-enable clicks for buttons */
         }
+        
         .dpad-btn {
             width: 65px;
             height: 65px;
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(5px);
-            border: 2px solid rgba(255,255,255,0.4);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(4px);
+            border: 2px solid rgba(255,255,255,0.25);
             border-radius: 50%;
             color: white;
             font-size: 24px;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             transition: transform 0.1s ease, background-color 0.1s ease;
         }
         .dpad-btn:active, .dpad-btn--active {
-            transform: scale(0.92);
-            background: rgba(255,255,255,0.3);
+            transform: scale(0.9);
+            background: rgba(255,255,255,0.25);
+            border-color: rgba(255,255,255,0.6);
         }
         #up-btn { grid-area: up; }
         #down-btn { grid-area: down; }
         #left-btn { grid-area: left; }
         #right-btn { grid-area: right; }
 
+        /* Mobile Layout Adjustments */
         @media (hover: none) and (pointer: coarse) and (orientation: portrait) {
-            body { justify-content: flex-start; padding-top: 4vh; }
-            #game-container { max-height: 75vh; }
-            #mobile-controls-container { display: flex; }
+            body { 
+                justify-content: flex-start; 
+                padding-top: 20px; 
+            }
+            #game-container { 
+                /* Reduce game size slightly to leave clear space at bottom for controls */
+                max-height: 60vh; 
+                width: 90vw;
+            }
+            
+            /* Only show controls IF body has the 'game-loaded' class */
+            body.game-loaded #mobile-controls-container { 
+                display: flex;
+                animation: popUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+        }
+
+        /* Pop-up animation for controls */
+        @keyframes popUp {
+            0% { opacity: 0; transform: translateY(50px) scale(0.8); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
         }
     </style>
 </head>
@@ -98,6 +130,7 @@
 </div>
 
 <div id="mobile-controls-container">
+    <!-- Moved Text specifically here to be part of the pop-up unit -->
     <p id="mobile-instructions">Swipe or Tap to Move</p>
     <div id="dpad-container">
         <div id="up-btn" class="dpad-btn">▲</div>
@@ -114,11 +147,10 @@
         const ctx = canvas.getContext('2d', { alpha: false });
 
         // --- HD RESOLUTION SETTINGS ---
-        // We double the resolution logic to make everything Ultra Clear
-        const logicalWidth = 1024;  // High Res Width
-        const logicalHeight = 1144; // High Res Height
-        const gridSize = 64;        // Large grid for sharp sprites
-        const uiBarHeight = 120;    // Taller UI bar for HD Text
+        const logicalWidth = 1024;  
+        const logicalHeight = 1144; 
+        const gridSize = 64;        
+        const uiBarHeight = 120;    
         const gameAreaHeight = 1024;
         
         const initialSpeed = 8;
@@ -130,7 +162,7 @@
         canvas.height = logicalHeight * dpr;
         ctx.scale(dpr, dpr);
 
-        // Load Fonts with larger sizes for HD
+        // Load Fonts
         await document.fonts.load("180px 'Luckiest Guy'");
         await document.fonts.load("64px 'Lilita One'");
 
@@ -191,7 +223,6 @@
         let clickAnim = { active: false, name: '', scale: 1, start: 0 };
         let loading = { current: 0, target: 0, fadeAlpha: 1, isDone: false };
         
-        // Rects updated for 1024px width (Doubled coords)
         const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
         const replayBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 + 120, w: 300, h: 300 };
         const backBtnRect = { x: 30, y: 20, w: 460, h: 80 };
@@ -238,8 +269,7 @@
         }
 
         function draw(currentTime) {
-            // Default: Smoothing Enabled for HD Text and UI
-            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingEnabled = true; // Smooth for UI
             
             ctx.save();
             if (shake.isShaking) {
@@ -252,21 +282,23 @@
                 drawLoadingScreen();
                 if (assetsLoaded === totalAssets && !loading.isDone) {
                     loading.isDone = true;
-                    setTimeout(() => { gameState = 'MENU'; }, 500);
+                    // --- D-PAD REVEAL LOGIC ---
+                    // When loading is finished, switch state and reveal controls
+                    setTimeout(() => { 
+                        gameState = 'MENU'; 
+                        document.body.classList.add('game-loaded'); 
+                    }, 500);
                 }
             }
             
             if (gameState !== 'LOADING') {
                 drawBackground();
                 if (gameState === 'PLAYING' || gameState === 'GAMEOVER_ANIMATING' || gameState === 'COUNTDOWN') {
-                    // Game Elements: Disable smoothing for pixel-art assets
                     ctx.save();
-                    ctx.imageSmoothingEnabled = false;
+                    ctx.imageSmoothingEnabled = false; // Sharp for game assets
                     drawApple(currentTime);
                     drawSnake();
                     ctx.restore();
-                    
-                    // UI: Back to smoothing for text
                     drawUIBar();
                 }
                 if (gameState === 'MENU') drawHomeScreen(currentTime);
@@ -322,7 +354,7 @@
             ctx.textBaseline = 'middle';
             
             ctx.save();
-            ctx.imageSmoothingEnabled = false; // Apple icon sharp
+            ctx.imageSmoothingEnabled = false; 
             ctx.drawImage(assets.images.apple, 40, uiBarHeight / 2 - 32, 64, 64);
             ctx.restore();
             
