@@ -117,7 +117,6 @@
                     height: auto;
                 }
 
-                /* Initially HIDDEN on mobile portrait too */
                 #mobile-controls-container {
                     display: none; 
                     flex-shrink: 0;
@@ -127,7 +126,6 @@
                     border-top: 1px solid rgba(255,255,255,0.05);
                 }
 
-                /* --- THE FIX: ONLY SHOW WHEN GAME IS LOADED --- */
                 body.game-loaded #mobile-controls-container {
                     display: flex; 
                     animation: fadeUp 0.5s ease-out;
@@ -176,7 +174,6 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
 
-        // --- GAME CONSTANTS ---
         const logicalWidth = 1024;  
         const logicalHeight = 1144; 
         const gridSize = 64;        
@@ -335,7 +332,6 @@
                     createCachedBackground();
                     setTimeout(() => { 
                         gameState = 'MENU'; 
-                        // Adds the class that makes controls visible
                         document.body.classList.add('game-loaded'); 
                         window.dispatchEvent(new Event('resize'));
                     }, 500);
@@ -627,7 +623,7 @@
                 countdown.text = text;
                 function animate(time) {
                     const elapsed = time - start;
-                    const duration = 800;
+                    const duration = 1000;
                     const progress = Math.min(elapsed / duration, 1);
                     countdown.scale = 1 + progress * 0.5;
                     countdown.alpha = 1 - progress;
