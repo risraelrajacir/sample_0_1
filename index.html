@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Snake HD</title>
     <style>
         /* Embedded Fonts */
@@ -10,15 +10,18 @@
         :root {
             --font-title: 'Luckiest Guy', Impact, sans-serif;
             --font-ui: 'Lilita One', 'Arial Black', sans-serif;
-            --bg-color: #1a1a1a;
+            --bg-color-loading: #1a1a1a;
+            --bg-color-game: #4A752C; /* Matches game board */
         }
         * { box-sizing: border-box; }
         
         body {
-            background-color: var(--bg-color);
+            background-color: var(--bg-color-loading);
             margin: 0;
+            padding: 0;
             overflow: hidden;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
@@ -27,78 +30,68 @@
             -webkit-user-select: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
-        }
-        
-        /* 
-           LAYOUT CONTAINER 
-           Wraps Game + Controls to handle orientation switching
-        */
-        #main-layout {
-            display: flex;
-            width: 100%;
-            height: 100%;
-            justify-content: center;
-            align-items: center;
-            transition: opacity 0.3s;
+            transition: background-color 0.5s ease;
         }
 
-        /* GAME CONTAINER */
+        /* When game loads, body becomes green to blend edges */
+        body.game-active {
+            background-color: var(--bg-color-game);
+        }
+        
         #game-container {
             position: relative;
             overflow: hidden;
             flex-shrink: 0;
-            border-radius: 12px;
-            /* Shadow and Border only show when game is loaded */
-            box-shadow: none; 
-            background: var(--bg-color);
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            /* Centering */
+            display: block;
         }
         
-        /* When game is loaded, we apply the distinct look */
-        body.game-loaded #game-container {
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-            background: #4A752C;
-        }
-
         canvas {
             width: 100%;
             height: 100%;
             display: block;
+            outline: none;
         }
         
-        /* CONTROLS CONTAINER */
+        /* --- MOBILE CONTROLS --- */
         #mobile-controls-container {
-            display: none; /* Hidden during load */
+            position: relative;
+            width: 100%;
+            display: none; /* Hidden by default (PC) */
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 10px;
             z-index: 200;
+            padding: 10px 0;
+            flex-shrink: 0;
         }
         
         #mobile-instructions {
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.6);
             font-family: var(--font-ui);
             font-size: 14px;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 2px rgba(0,0,0,0.8);
+            margin: 0;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
             letter-spacing: 1px;
             text-transform: uppercase;
             text-align: center;
-            white-space: nowrap;
         }
 
         #dpad-container {
             display: grid;
             grid-template-areas: ". up ." "left . right" ". down .";
-            gap: 10px;
+            gap: 8px;
             pointer-events: auto;
         }
         
         .dpad-btn {
             width: 60px;
             height: 60px;
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(4px);
-            border: 2px solid rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
             border-radius: 50%;
             color: white;
             font-size: 24px;
@@ -110,90 +103,94 @@
         }
         .dpad-btn:active, .dpad-btn--active {
             transform: scale(0.9);
-            background: rgba(255,255,255,0.25);
-            border-color: rgba(255,255,255,0.6);
+            background: rgba(255,255,255,0.3);
         }
         #up-btn { grid-area: up; }
         #down-btn { grid-area: down; }
         #left-btn { grid-area: left; }
         #right-btn { grid-area: right; }
 
-        /* =========================================
-           RESPONSIVE ORIENTATION RULES 
-           ========================================= */
+        /* --- DEVICE SPECIFIC MEDIA QUERIES --- */
 
-        /* PORTRAIT (Vertical Phone/Tab) */
-        @media (orientation: portrait) {
-            #main-layout {
-                flex-direction: column;
-            }
-            #game-container {
-                width: 95vw;
-                max-height: 65vh; /* Game takes top 65% */
-                aspect-ratio: 1024/1144;
-            }
-            body.game-loaded #mobile-controls-container {
-                display: flex;
-                width: 100%;
-                height: 35vh; /* Controls take bottom 35% */
-                animation: popUp 0.5s ease-out;
-            }
-        }
-
-        /* LANDSCAPE (Horizontal Phone/Tab) */
-        @media (orientation: landscape) {
-            #main-layout {
-                flex-direction: row;
-                padding: 10px;
-                gap: 20px;
-            }
-            #game-container {
-                height: 95vh;
-                max-width: 70vw; /* Game takes left 70% */
-                aspect-ratio: 1024/1144;
-            }
-            body.game-loaded #mobile-controls-container {
-                display: flex;
-                width: 30vw; /* Controls take right 30% */
-                height: 100%;
-                justify-content: center;
-                animation: popInRight 0.5s ease-out;
-            }
-            /* Make buttons slightly smaller in landscape to fit tight spaces */
-            .dpad-btn { width: 55px; height: 55px; font-size: 20px; }
-        }
-
-        /* Desktop override (Mouse users don't need dpad) */
+        /* 1. PC / DESKTOP (Hover devices): Hide D-Pad completely */
         @media (hover: hover) and (pointer: fine) {
-            #mobile-controls-container { display: none !important; }
-            #game-container { max-height: 95vh; max-width: 95vw; }
+            #mobile-controls-container {
+                display: none !important;
+            }
+            #game-container {
+                /* On PC, fit to height, auto width */
+                height: 100vh;
+                width: auto;
+                aspect-ratio: 1024 / 1144;
+            }
         }
 
-        @keyframes popUp {
-            0% { opacity: 0; transform: translateY(20px); }
-            100% { opacity: 1; transform: translateY(0); }
+        /* 2. MOBILE / TABLET (Touch devices) */
+        @media (hover: none) and (pointer: coarse) {
+            
+            /* PORTRAIT MODE: Stack Game on Top, Controls Below */
+            @media (orientation: portrait) {
+                body {
+                    justify-content: flex-start; /* Align to top */
+                }
+                #game-container {
+                    width: 100vw;
+                    /* Calculate remaining height for controls, but cap game at 65% height */
+                    height: auto;
+                    max-height: 65vh; 
+                    aspect-ratio: 1024 / 1144;
+                }
+                /* Show controls only when game loads */
+                body.game-loaded #mobile-controls-container {
+                    display: flex;
+                    flex-grow: 1; /* Fill remaining space at bottom */
+                    animation: fadeInUp 0.5s ease-out;
+                }
+            }
+
+            /* LANDSCAPE MODE: Fit Game to Height, Swipe Controls preferred */
+            @media (orientation: landscape) {
+                body {
+                    flex-direction: row; /* Layout horizontal */
+                }
+                #game-container {
+                    height: 100vh;
+                    width: auto;
+                    aspect-ratio: 1024 / 1144;
+                }
+                /* In landscape, D-pad often blocks view. 
+                   We position it absolute right if space permits, or hide it. 
+                   Here we place it to the right side. */
+                body.game-loaded #mobile-controls-container {
+                    display: flex;
+                    width: auto;
+                    height: 100vh;
+                    padding: 0 20px;
+                    justify-content: center;
+                }
+                .dpad-btn { width: 50px; height: 50px; } /* Smaller buttons in landscape */
+            }
         }
-        @keyframes popInRight {
-            0% { opacity: 0; transform: translateX(20px); }
-            100% { opacity: 1; transform: translateX(0); }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
 
-<div id="main-layout">
-    <div id="game-container">
-        <canvas id="gameCanvas"></canvas>
-    </div>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+</div>
 
-    <div id="mobile-controls-container">
-        <p id="mobile-instructions">Swipe or Tap to Move</p>
-        <div id="dpad-container">
-            <div id="up-btn" class="dpad-btn">▲</div>
-            <div id="left-btn" class="dpad-btn">◀</div>
-            <div id="right-btn" class="dpad-btn">▶</div>
-            <div id="down-btn" class="dpad-btn">▼</div>
-        </div>
+<div id="mobile-controls-container">
+    <p id="mobile-instructions">Swipe or Tap</p>
+    <div id="dpad-container">
+        <div id="up-btn" class="dpad-btn">▲</div>
+        <div id="left-btn" class="dpad-btn">◀</div>
+        <div id="right-btn" class="dpad-btn">▶</div>
+        <div id="down-btn" class="dpad-btn">▼</div>
     </div>
 </div>
 
@@ -204,7 +201,6 @@
         const ctx = canvas.getContext('2d', { alpha: false });
 
         // --- HD LOGICAL SIZE ---
-        // We stick to a near-square ratio which scales well on both orientations
         const logicalWidth = 1024;  
         const logicalHeight = 1144; 
         const gridSize = 64;        
@@ -214,7 +210,6 @@
         const initialSpeed = 8;
         let currentSpeed = 8;
         
-        // Setup Retina/HD scaling
         const dpr = window.devicePixelRatio || 1;
         canvas.width = logicalWidth * dpr;
         canvas.height = logicalHeight * dpr;
@@ -259,7 +254,7 @@
         let assetsLoaded = 0;
         const totalAssets = Object.keys(assetUrls.images).length + Object.keys(assetUrls.sounds).length;
 
-        // --- SOUND POOLING (Fixes overlapping sound issues) ---
+        // --- SOUND POOL (Fixes missing Move sounds) ---
         const moveSoundPool = [];
         const POOL_SIZE = 5;
 
@@ -268,7 +263,7 @@
             if (assetsLoaded === totalAssets) {
                 for(let i=0; i<POOL_SIZE; i++) {
                     const s = new Audio(assetUrls.sounds.move);
-                    s.volume = 1.0;
+                    s.volume = 0.8;
                     moveSoundPool.push(s);
                 }
             }
@@ -302,7 +297,7 @@
         let loading = { current: 0, target: 0, fadeAlpha: 1, isDone: false };
         let cachedBackground = null;
         
-        // Logical Hitboxes
+        // --- BUTTON ZONES ---
         const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
         const replayBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 + 120, w: 300, h: 300 };
         const backBtnRect = { x: 30, y: 20, w: 450, h: 100 };
@@ -313,7 +308,7 @@
             score = 0;
             currentSpeed = initialSpeed;
             currentDirection = { x: 1, y: 0 };
-            moveQueue = []; 
+            moveQueue = [];
             spawnApple();
             startCountdown();
         }
@@ -369,6 +364,8 @@
                     setTimeout(() => { 
                         gameState = 'MENU'; 
                         document.body.classList.add('game-loaded'); 
+                        // Once game loads, body background becomes green (via CSS) to eliminate gaps
+                        document.body.classList.add('game-active');
                     }, 500);
                 }
             }
@@ -416,21 +413,19 @@
         }
 
         function drawLoadingScreen() {
-            loading.target = assetsLoaded / totalAssets;
-            loading.current += (loading.target - loading.current) * 0.1;
-
-            if (loading.isDone && loading.fadeAlpha > 0) {
-                loading.fadeAlpha -= 0.05;
-                ctx.globalAlpha = Math.max(0, loading.fadeAlpha);
-            }
-            // Seamless background for loading
+            // Draw background fill
             ctx.fillStyle = '#1a1a1a';
             ctx.fillRect(0, 0, logicalWidth, logicalHeight);
             
+            // Draw text
             ctx.font = "64px 'Lilita One'";
             ctx.fillStyle = '#FFF';
             ctx.textAlign = 'center';
             ctx.fillText('Loading Game...', logicalWidth / 2, logicalHeight / 2 - 80);
+            
+            // Draw Progress Bar
+            loading.target = assetsLoaded / totalAssets;
+            loading.current += (loading.target - loading.current) * 0.1;
             
             const barX = logicalWidth / 2 - 300, barY = logicalHeight / 2, barW = 600, barH = 40;
             ctx.fillStyle = '#444';
@@ -443,7 +438,6 @@
                 ctx.roundRect(barX, barY, barW * loading.current, barH, 20);
                 ctx.fill();
             }
-            ctx.globalAlpha = 1;
         }
 
         function drawUIBar() {
@@ -693,9 +687,11 @@
             triggerShake();
         }
         
+        // --- INPUT QUEUE (Stuck Fix) ---
         function setDirection(dir) {
              if (gameState !== 'PLAYING') return;
              const lastMove = moveQueue.length > 0 ? moveQueue[moveQueue.length - 1] : currentDirection;
+             
              if (dir.x !== 0 && lastMove.x !== 0) return;
              if (dir.y !== 0 && lastMove.y !== 0) return;
              
@@ -751,8 +747,7 @@
                 } else {
                     setDirection({ x: 0, y: dy > 0 ? 1 : -1 });
                 }
-                // Reset to prevent continuous scrolling trigger
-                touchStartX = e.touches[0].clientX;
+                touchStartX = e.touches[0].clientX; // Reset to allow continuous swipes
                 touchStartY = e.touches[0].clientY;
             }
         }, { passive: false });
@@ -793,9 +788,16 @@
                 triggerClickAnimation('home', () => window.location.href = "index.html");
             }
         });
+
+        // --- RESIZE LOGIC (NO GAPS) ---
+        function resizeGame() {
+            // Force redraw of layout
+        }
         
         gameState = 'LOADING';
         requestAnimationFrame(drawLoop); 
+        window.addEventListener('resize', resizeGame);
+        resizeGame();
     });
 </script>
 </body>
