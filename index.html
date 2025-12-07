@@ -34,9 +34,9 @@
             overflow: hidden;
             flex-shrink: 0;
             border-radius: 12px;
-            /* Desktop Default */
             max-width: 95vw;
             max-height: 95vh;
+            background: #4A752C; /* Fallback color */
         }
         
         canvas {
@@ -108,7 +108,6 @@
                 padding-top: 2vh;
             }
             #game-container {
-                /* Fix Height to 60% so controls fit below without scrolling */
                 max-height: 60vh;
                 width: 92vw;
             }
@@ -200,7 +199,22 @@
         let assetsLoaded = 0;
         const totalAssets = Object.keys(assetUrls.images).length + Object.keys(assetUrls.sounds).length;
 
-        function onAssetLoad() { assetsLoaded++; }
+        // --- OPTIMIZATION: Sound Pooling for Move Sound ---
+        // Creates multiple copies of the move sound to allow rapid overlapping playback
+        const moveSoundPool = [];
+        const POOL_SIZE = 5;
+
+        function onAssetLoad() { 
+            assetsLoaded++;
+            // When move sound is loaded, initialize the pool
+            if (assetsLoaded === totalAssets) {
+                for(let i=0; i<POOL_SIZE; i++) {
+                    const s = new Audio(assetUrls.sounds.move);
+                    s.volume = 1.0;
+                    moveSoundPool.push(s);
+                }
+            }
+        }
 
         Object.keys(assetUrls.images).forEach(key => { 
             assets.images[key] = new Image(); 
@@ -215,39 +229,50 @@
         assets.sounds.background.loop = true;
         assets.sounds.background.volume = 0.15;
 
-        let snake, apple, score, direction, nextDirection, gameState, gameLoopInterval;
+        // Helper to play overlapping sounds
+        function playMoveSound() {
+            // Find a sound in the pool that is paused or finished
+            const sound = moveSoundPool.find(s => s.paused) || moveSoundPool[0];
+            if (sound) {
+                sound.currentTime = 0;
+                sound.play().catch(()=>{});
+            }
+        }
+
+        let snake, apple, score, currentDirection, moveQueue, gameState, gameLoopInterval;
         let countdown = { text: '', alpha: 0, scale: 1 };
         let gameOverAnim = { titleY: -200, panelY: -200, start: 0 };
         let clickAnim = { active: false, name: '', scale: 1, start: 0 };
         let loading = { current: 0, target: 0, fadeAlpha: 1, isDone: false };
+        let cachedBackground = null; // Background Optimization
         
-        // --- BUTTON COORDINATES (For Click Detection) ---
-        // Play and Replay
+        // Rects
         const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
         const replayBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 + 120, w: 300, h: 300 };
-        
-        // Back Button (Covers both Icon and Text)
         const backBtnRect = { x: 30, y: 20, w: 450, h: 100 };
-        
-        // Home Button (Top Right)
         const homeBtnRect = { x: logicalWidth - 140, y: 20, w: 120, h: 120 };
 
         function init() {
             snake = [{ x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }];
             score = 0;
             currentSpeed = initialSpeed;
-            direction = { x: 1, y: 0 };
-            nextDirection = { x: 1, y: 0 };
+            currentDirection = { x: 1, y: 0 };
+            moveQueue = []; // Reset input queue
             spawnApple();
             startCountdown();
         }
         
         function update() {
-            direction = nextDirection;
-            const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+            // Process the next move from the queue
+            if (moveQueue.length > 0) {
+                currentDirection = moveQueue.shift();
+            }
+
+            const head = { x: snake[0].x + currentDirection.x, y: snake[0].y + currentDirection.y };
             const gridW = logicalWidth / gridSize;
             const gridH = gameAreaHeight / gridSize;
 
+            // Collision Check
             if (head.x < 0 || head.x >= gridW || head.y < 0 || head.y >= gridH || snake.some(p => p.x === head.x && p.y === head.y)) {
                 endGame(); return;
             }
@@ -260,6 +285,7 @@
                     clearInterval(gameLoopInterval);
                     gameLoopInterval = setInterval(gameLoop, 1000 / currentSpeed);
                 }
+                assets.sounds.eat.currentTime = 0;
                 assets.sounds.eat.play();
                 spawnApple();
             } else { snake.pop(); }
@@ -285,6 +311,8 @@
                 drawLoadingScreen();
                 if (assetsLoaded === totalAssets && !loading.isDone) {
                     loading.isDone = true;
+                    // Pre-render background once loading is done
+                    createCachedBackground();
                     setTimeout(() => { 
                         gameState = 'MENU'; 
                         document.body.classList.add('game-loaded'); 
@@ -311,12 +339,29 @@
             ctx.restore();
         }
         
-        function drawBackground() {
-            ctx.fillStyle = '#4A752C';
-            ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+        // --- OPTIMIZATION: Cached Background ---
+        function createCachedBackground() {
+            const bgCanvas = document.createElement('canvas');
+            bgCanvas.width = logicalWidth;
+            bgCanvas.height = logicalHeight;
+            const bgCtx = bgCanvas.getContext('2d');
+            
+            bgCtx.fillStyle = '#4A752C';
+            bgCtx.fillRect(0, 0, logicalWidth, logicalHeight);
             for (let i = 0; i < 16; i++) for (let j = 0; j < 16; j++) {
-                ctx.fillStyle = (i + j) % 2 === 0 ? '#a2d149' : '#aad751';
-                ctx.fillRect(i * gridSize, j * gridSize + uiBarHeight, gridSize, gridSize);
+                bgCtx.fillStyle = (i + j) % 2 === 0 ? '#a2d149' : '#aad751';
+                bgCtx.fillRect(i * gridSize, j * gridSize + uiBarHeight, gridSize, gridSize);
+            }
+            cachedBackground = bgCanvas;
+        }
+
+        function drawBackground() {
+            if (cachedBackground) {
+                ctx.drawImage(cachedBackground, 0, 0);
+            } else {
+                // Fallback if not cached yet
+                ctx.fillStyle = '#4A752C';
+                ctx.fillRect(0, 0, logicalWidth, logicalHeight);
             }
         }
 
@@ -380,10 +425,10 @@
             const segmentAfter = snake[index + 1];
 
             if (index === 0) {
-                if (direction.x === 1) return assets.images.head_right;
-                if (direction.x === -1) return assets.images.head_left;
-                if (direction.y === 1) return assets.images.head_down;
-                if (direction.y === -1) return assets.images.head_up;
+                if (currentDirection.x === 1) return assets.images.head_right;
+                if (currentDirection.x === -1) return assets.images.head_left;
+                if (currentDirection.y === 1) return assets.images.head_down;
+                if (currentDirection.y === -1) return assets.images.head_up;
             } else if (!segmentAfter) {
                 const from = segmentBefore;
                 if (from.x < segment.x) return assets.images.tail_right;
@@ -413,29 +458,22 @@
         }
         
         function drawHomeScreen(currentTime) {
-            ctx.fillStyle = '#4A752C';
-            ctx.fillRect(0, 0, logicalWidth, uiBarHeight);
+            drawBackground(); // Ensure BG is drawn
 
-            // --- ANIMATED BACK BUTTON GROUP (ICON + TEXT) ---
             let backScale = (clickAnim.active && clickAnim.name === 'back') ? clickAnim.scale : 1;
             
             ctx.save();
-            // Pivot around the center of the "Back" group area (~200px from left)
             ctx.translate(200, 60);
             ctx.scale(backScale, backScale);
             ctx.translate(-200, -60);
             
-            // Draw Icon
             ctx.drawImage(assets.images.arrow_back_icon, 40, 36, 48, 48);
-            
-            // Draw Text
             ctx.font = "48px 'Lilita One'";
             ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
             ctx.fillText("Back to Games", 110, 60);
             ctx.restore();
-            // ----------------------------------------------
 
             ctx.font = "180px 'Luckiest Guy'";
             ctx.fillStyle = '#87D37C';
@@ -460,7 +498,6 @@
         function drawGameOverContent(titleY, panelY, currentTime) {
             drawUIBar();
             
-            // --- ANIMATED HOME BUTTON (TOP RIGHT) ---
             let homeScale = (clickAnim.active && clickAnim.name === 'home') ? clickAnim.scale : 1;
             const homeCenterX = logicalWidth - 80;
             const homeCenterY = 60;
@@ -468,10 +505,8 @@
             ctx.save();
             ctx.translate(homeCenterX, homeCenterY);
             ctx.scale(homeScale, homeScale);
-            // Draw centered on 0,0
             ctx.drawImage(assets.images.home_icon, -32, -32, 64, 64);
             ctx.restore();
-            // ----------------------------------------
 
             ctx.font = "160px 'Luckiest Guy'";
             ctx.fillStyle = '#E74C3C';
@@ -606,12 +641,22 @@
             triggerShake();
         }
         
+        // --- INPUT QUEUE SYSTEM (Prevents Stuck Inputs) ---
         function setDirection(dir) {
              if (gameState !== 'PLAYING') return;
-             let moved = false;
-             if (dir.x !== 0 && direction.x === 0) { nextDirection = dir; moved = true; }
-             if (dir.y !== 0 && direction.y === 0) { nextDirection = dir; moved = true; }
-             if (moved) assets.sounds.move.play();
+             
+             // Get the last planned move (or current direction if queue is empty)
+             const lastMove = moveQueue.length > 0 ? moveQueue[moveQueue.length - 1] : currentDirection;
+             
+             // Prevent reversing into self based on the *last planned move*
+             if (dir.x !== 0 && lastMove.x !== 0) return;
+             if (dir.y !== 0 && lastMove.y !== 0) return;
+             
+             // Max queue size to prevent input flooding
+             if(moveQueue.length < 3) {
+                 moveQueue.push(dir);
+                 playMoveSound();
+             }
         }
 
         document.addEventListener('keydown', e => {
