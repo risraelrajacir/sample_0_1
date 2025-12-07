@@ -30,86 +30,64 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.6);
             overflow: hidden;
             flex-shrink: 0;
-            background: #4A752C;
+            /* Removed pixelated rendering here to allow fonts to be smooth/HD */
         }
         canvas {
             width: 100%;
             height: 100%;
             display: block;
         }
-        
-        /* Mobile Controls UI */
         #mobile-controls-container {
             position: absolute;
-            bottom: 0;
+            bottom: 20px;
             left: 0;
             width: 100%;
-            height: auto;
-            padding-bottom: 20px;
-            display: none; /* Hidden by default, shown via JS after load */
+            display: none;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end;
-            gap: 10px;
+            gap: 15px;
             z-index: 200;
-            pointer-events: none; /* Let clicks pass through empty areas */
         }
-        
         #mobile-instructions {
             color: #fff;
             font-family: var(--font-ui);
-            font-size: 18px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-            margin: 0 0 5px 0;
-            pointer-events: auto;
-            background: rgba(0,0,0,0.3);
-            padding: 5px 15px;
-            border-radius: 10px;
+            font-size: 16px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            opacity: 0.8;
         }
-
         #dpad-container {
             display: grid;
             grid-template-areas: ". up ." "left . right" ". down .";
-            gap: 15px;
-            pointer-events: auto;
-            margin-bottom: 10px;
+            gap: 12px;
         }
-        
         .dpad-btn {
-            width: 70px;
-            height: 70px;
+            width: 65px;
+            height: 65px;
             background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(5px);
             border: 2px solid rgba(255,255,255,0.4);
             border-radius: 50%;
             color: white;
-            font-size: 28px;
+            font-size: 24px;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
             transition: transform 0.1s ease, background-color 0.1s ease;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
         }
         .dpad-btn:active, .dpad-btn--active {
             transform: scale(0.92);
-            background: rgba(255,255,255,0.4);
+            background: rgba(255,255,255,0.3);
         }
         #up-btn { grid-area: up; }
         #down-btn { grid-area: down; }
         #left-btn { grid-area: left; }
         #right-btn { grid-area: right; }
 
-        /* Tablet/Mobile Adjustments */
-        @media (hover: none) and (pointer: coarse) {
-            body { 
-                justify-content: flex-start; 
-                padding-top: 20px; 
-            }
-            #game-container { 
-                border-radius: 4px;
-            }
+        @media (hover: none) and (pointer: coarse) and (orientation: portrait) {
+            body { justify-content: flex-start; padding-top: 4vh; }
+            #game-container { max-height: 75vh; }
+            #mobile-controls-container { display: flex; }
         }
     </style>
 </head>
@@ -119,7 +97,6 @@
     <canvas id="gameCanvas"></canvas>
 </div>
 
-<!-- Controls live outside the canvas so they overlay properly but don't interfere with rendering -->
 <div id="mobile-controls-container">
     <p id="mobile-instructions">Swipe or Tap to Move</p>
     <div id="dpad-container">
@@ -135,28 +112,27 @@
         const gameContainer = document.getElementById('game-container');
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
-        const controlsContainer = document.getElementById('mobile-controls-container');
 
-        // --- HD RESOLUTION SETTINGS (Ultra Clear) ---
-        const logicalWidth = 1024;  
-        const logicalHeight = 1144; 
-        const gridSize = 64;        
-        const uiBarHeight = 120;    
+        // --- HD RESOLUTION SETTINGS ---
+        // We double the resolution logic to make everything Ultra Clear
+        const logicalWidth = 1024;  // High Res Width
+        const logicalHeight = 1144; // High Res Height
+        const gridSize = 64;        // Large grid for sharp sprites
+        const uiBarHeight = 120;    // Taller UI bar for HD Text
         const gameAreaHeight = 1024;
         
         const initialSpeed = 8;
         let currentSpeed = 8;
         
-        // Handle High-DPI
+        // Handle Device Pixel Ratio for Retina/High-DPI screens
         const dpr = window.devicePixelRatio || 1;
         canvas.width = logicalWidth * dpr;
         canvas.height = logicalHeight * dpr;
         ctx.scale(dpr, dpr);
 
-        // Load HD Fonts
+        // Load Fonts with larger sizes for HD
         await document.fonts.load("180px 'Luckiest Guy'");
         await document.fonts.load("64px 'Lilita One'");
-        await document.fonts.load("48px 'Lilita One'");
 
         const assetUrls = {
             images: { 
@@ -215,13 +191,11 @@
         let clickAnim = { active: false, name: '', scale: 1, start: 0 };
         let loading = { current: 0, target: 0, fadeAlpha: 1, isDone: false };
         
-        // --- BUTTON POSITIONS (Calculated for HD Canvas) ---
+        // Rects updated for 1024px width (Doubled coords)
         const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
         const replayBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 + 120, w: 300, h: 300 };
-        // Back Button (Left Header)
-        const backBtnRect = { x: 30, y: 30, w: 350, h: 64 };
-        // Home Button (Right Header - Middle)
-        const homeBtnRect = { x: logicalWidth - 100, y: (uiBarHeight - 64) / 2, w: 64, h: 64 };
+        const backBtnRect = { x: 30, y: 20, w: 460, h: 80 };
+        const homeBtnRect = { x: logicalWidth - 110, y: 30, w: 80, h: 80 };
 
         function init() {
             snake = [{ x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }];
@@ -264,7 +238,8 @@
         }
 
         function draw(currentTime) {
-            ctx.imageSmoothingEnabled = true; // Enable for Text/UI
+            // Default: Smoothing Enabled for HD Text and UI
+            ctx.imageSmoothingEnabled = true;
             
             ctx.save();
             if (shake.isShaking) {
@@ -277,31 +252,23 @@
                 drawLoadingScreen();
                 if (assetsLoaded === totalAssets && !loading.isDone) {
                     loading.isDone = true;
-                    // SHOW CONTROLS NOW, NOT BEFORE
-                    setTimeout(() => { 
-                        gameState = 'MENU'; 
-                        // Only show controls if device is likely touch
-                        if (window.matchMedia("(pointer: coarse)").matches) {
-                            controlsContainer.style.display = 'flex';
-                            resizeGame(); // Re-calc layout
-                        }
-                    }, 500);
+                    setTimeout(() => { gameState = 'MENU'; }, 500);
                 }
             }
             
             if (gameState !== 'LOADING') {
                 drawBackground();
                 if (gameState === 'PLAYING' || gameState === 'GAMEOVER_ANIMATING' || gameState === 'COUNTDOWN') {
-                    // Disable smoothing for sharp pixel art
+                    // Game Elements: Disable smoothing for pixel-art assets
                     ctx.save();
                     ctx.imageSmoothingEnabled = false;
                     drawApple(currentTime);
                     drawSnake();
                     ctx.restore();
                     
+                    // UI: Back to smoothing for text
                     drawUIBar();
                 }
-                
                 if (gameState === 'MENU') drawHomeScreen(currentTime);
                 else if (gameState === 'GAMEOVER_ANIMATING') drawGameOverAnimation(currentTime);
                 else if (gameState === 'GAMEOVER') drawGameOverScreen(currentTime, true);
@@ -355,7 +322,7 @@
             ctx.textBaseline = 'middle';
             
             ctx.save();
-            ctx.imageSmoothingEnabled = false; 
+            ctx.imageSmoothingEnabled = false; // Apple icon sharp
             ctx.drawImage(assets.images.apple, 40, uiBarHeight / 2 - 32, 64, 64);
             ctx.restore();
             
@@ -411,29 +378,23 @@
             });
         }
         
-        // --- HOME SCREEN ---
         function drawHomeScreen(currentTime) {
             ctx.fillStyle = '#4A752C';
             ctx.fillRect(0, 0, logicalWidth, uiBarHeight);
 
-            // ANIMATED BACK BUTTON
             let backScale = (clickAnim.active && clickAnim.name === 'back') ? clickAnim.scale : 1;
             ctx.save();
-            // Center of back button icon for scaling
-            let backCX = backBtnRect.x + 32;
-            let backCY = backBtnRect.y + 32;
-            ctx.translate(backCX, backCY);
+            ctx.translate(40 + 24, 36 + 24);
             ctx.scale(backScale, backScale);
-            ctx.drawImage(assets.images.arrow_back_icon, -32, -32, 64, 64);
+            ctx.drawImage(assets.images.arrow_back_icon, -24, -24, 48, 48);
             ctx.restore();
 
             ctx.font = "48px 'Lilita One'";
             ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
-            ctx.fillText("Back to Games", backBtnRect.x + 80, backBtnRect.y + 35);
+            ctx.fillText("Back to Games", 100, 60);
 
-            // Title and Play Button
             ctx.font = "180px 'Luckiest Guy'";
             ctx.fillStyle = '#87D37C';
             ctx.textAlign = 'center';
@@ -450,7 +411,6 @@
             ctx.drawImage(assets.images.playBtn, x, y, w, h);
         }
         
-        // --- GAMEOVER SCREEN ---
         function drawGameOverScreen(currentTime, isFinal) {
             drawGameOverContent(gameOverAnim.titleY, gameOverAnim.panelY, currentTime);
         }
@@ -458,18 +418,13 @@
         function drawGameOverContent(titleY, panelY, currentTime) {
             drawUIBar();
             
-            // ANIMATED HOME ICON (Right Side)
             let homeScale = (clickAnim.active && clickAnim.name === 'home') ? clickAnim.scale : 1;
             ctx.save();
-            // Center of home icon
-            let homeCX = homeBtnRect.x + (homeBtnRect.w/2);
-            let homeCY = homeBtnRect.y + (homeBtnRect.h/2);
-            ctx.translate(homeCX, homeCY);
+            ctx.translate(homeBtnRect.x + 32, homeBtnRect.y + 32);
             ctx.scale(homeScale, homeScale);
             ctx.drawImage(assets.images.home_icon, -32, -32, 64, 64);
             ctx.restore();
 
-            // Game Over Text
             ctx.font = "160px 'Luckiest Guy'";
             ctx.fillStyle = '#E74C3C';
             ctx.textAlign = 'center';
@@ -479,7 +434,6 @@
             ctx.strokeText("GAME OVER", logicalWidth / 2, titleY);
             ctx.fillText("GAME OVER", logicalWidth / 2, titleY);
             
-            // Score Panel
             const panelX = logicalWidth / 2 - 300, panelW = 600, panelH = 220;
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.strokeStyle = '#fff';
@@ -496,7 +450,6 @@
             ctx.fillText(`Score: ${score}`, panelX + 60, panelY + 70);
             ctx.fillText(`Best: ${bestTarget}`, panelX + 60, panelY + 150);
 
-            // Replay Button
             let replayScale = (clickAnim.active && clickAnim.name === 'replay') ? clickAnim.scale : (1 + Math.sin(currentTime / 300) * 0.05);
             const w = replayBtnRect.w * replayScale;
             const h = replayBtnRect.h * replayScale;
@@ -549,32 +502,28 @@
 
         async function startCountdown() {
             gameState = 'COUNTDOWN';
-            
-            // Fix: Play sound immediately when countdown starts
             try {
                 assets.sounds.countdown.currentTime = 0;
-                assets.sounds.countdown.volume = 0.5;
                 assets.sounds.countdown.play().catch(()=>{});
             } catch (e) {}
 
-            // Timed sequence to match sound (approx 1 sec per beat)
-            await animateCountdownText('3', 900);
-            await animateCountdownText('2', 900);
-            await animateCountdownText('1', 900);
-            await animateCountdownText('GO!', 500);
-
+            const sequence = ['3', '2', '1', 'GO!'];
+            for (const text of sequence) {
+                await animateCountdownText(text);
+            }
             gameState = 'PLAYING';
             assets.sounds.background.currentTime = 0;
             assets.sounds.background.play();
             gameLoopInterval = setInterval(gameLoop, 1000 / currentSpeed);
         }
 
-        function animateCountdownText(text, duration) {
+        function animateCountdownText(text) {
             return new Promise(resolve => {
                 let start = performance.now();
                 countdown.text = text;
                 function animate(time) {
                     const elapsed = time - start;
+                    const duration = 800;
                     const progress = Math.min(elapsed / duration, 1);
                     countdown.scale = 1 + progress * 0.5;
                     countdown.alpha = 1 - progress;
@@ -639,10 +588,6 @@
             btn.addEventListener('touchstart', handlePress, { passive: false });
             btn.addEventListener('touchend', handleRelease);
             btn.addEventListener('touchcancel', handleRelease);
-            // Mouse fallbacks for testing on PC
-            btn.addEventListener('mousedown', handlePress);
-            btn.addEventListener('mouseup', handleRelease);
-            btn.addEventListener('mouseleave', handleRelease);
         });
 
         let touchStartX = 0, touchStartY = 0;
@@ -704,50 +649,23 @@
             const x = (e.clientX - rect.left) * scaleX;
             const y = (e.clientY - rect.top) * scaleY;
 
-            // MENU: Play Button
             if (gameState === 'MENU' && x > playBtnRect.x && x < playBtnRect.x + playBtnRect.w && y > playBtnRect.y && y < playBtnRect.y + playBtnRect.h) {
                 triggerClickAnimation('play', init);
-            } 
-            // GAMEOVER: Replay Button
-            else if (gameState === 'GAMEOVER' && x > replayBtnRect.x && x < replayBtnRect.x + replayBtnRect.w && y > replayBtnRect.y && y < replayBtnRect.y + replayBtnRect.h) {
+            } else if (gameState === 'GAMEOVER' && x > replayBtnRect.x && x < replayBtnRect.x + replayBtnRect.w && y > replayBtnRect.y && y < replayBtnRect.y + replayBtnRect.h) {
                 triggerClickAnimation('replay', init);
-            } 
-            // MENU: Back Button
-            else if (gameState === 'MENU' && x > backBtnRect.x && x < backBtnRect.x + backBtnRect.w && y > backBtnRect.y && y < backBtnRect.y + backBtnRect.h) {
+            } else if (gameState === 'MENU' && x > backBtnRect.x && x < backBtnRect.x + backBtnRect.w && y > backBtnRect.y && y < backBtnRect.y + backBtnRect.h) {
                 triggerClickAnimation('back', () => window.location.href = "index.html");
-            } 
-            // GAMEOVER: Home Icon
-            else if (gameState === 'GAMEOVER' && x > homeBtnRect.x && x < homeBtnRect.x + homeBtnRect.w && y > homeBtnRect.y && y < homeBtnRect.y + homeBtnRect.h) {
+            } else if (gameState === 'GAMEOVER' && x > homeBtnRect.x && x < homeBtnRect.x + homeBtnRect.w && y > homeBtnRect.y && y < homeBtnRect.y + homeBtnRect.h) {
                 triggerClickAnimation('home', () => window.location.href = "index.html");
             }
         });
 
         function resizeGame() {
             const viewportW = window.innerWidth, viewportH = window.innerHeight;
-            
-            // Adjust canvas to fit available space, leaving room for controls on mobile
-            let availableH = viewportH;
-            if (window.matchMedia("(pointer: coarse)").matches) {
-                // Reserve space for d-pad so it doesn't overlap game too much
-                const controlHeight = controlsContainer.offsetHeight || 150; 
-                availableH = viewportH - (controlHeight * 0.7); // slight overlap ok
-            }
-
             const gameAspect = logicalWidth / logicalHeight;
             let newW, newH;
-
-            if (viewportW / availableH > gameAspect) { 
-                newH = availableH; 
-                newW = newH * gameAspect; 
-            } else { 
-                newW = viewportW; 
-                newH = newW / gameAspect; 
-            }
-            
-            // Limit max size
-            newW = Math.min(newW, viewportW - 20);
-            newH = Math.min(newH, viewportH - 20);
-
+            if (viewportW / viewportH > gameAspect) { newH = viewportH; newW = newH * gameAspect; } 
+            else { newW = viewportW; newH = newW / gameAspect; }
             gameContainer.style.width = `${newW}px`;
             gameContainer.style.height = `${newH}px`;
         }
@@ -755,8 +673,7 @@
         gameState = 'LOADING';
         requestAnimationFrame(drawLoop); 
         window.addEventListener('resize', resizeGame);
-        // Initial Resize after a brief delay to ensure DOM is ready
-        setTimeout(resizeGame, 100);
+        resizeGame();
     });
 </script>
 </body>
