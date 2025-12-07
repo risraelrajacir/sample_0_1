@@ -51,13 +51,13 @@
             width: 100%;
             height: 100%;
             display: block;
-            /* Removed object-fit: contain to ensure clicks align in landscape */
+            object-fit: contain;
         }
         
         /* --- CONTROLS AREA --- */
         #mobile-controls-container {
             width: 100%;
-            /* HIDDEN BY DEFAULT (Wait for loader) */
+            /* HIDDEN BY DEFAULT */
             display: none; 
             flex-direction: column;
             align-items: center;
@@ -126,6 +126,7 @@
                     border-top: 1px solid rgba(255,255,255,0.05);
                 }
 
+                /* SHOW CONTROLS ONLY WHEN LOADED */
                 body.game-loaded #mobile-controls-container {
                     display: flex; 
                     animation: fadeUp 0.5s ease-out;
@@ -174,6 +175,7 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
 
+        // --- GAME CONSTANTS ---
         const logicalWidth = 1024;  
         const logicalHeight = 1144; 
         const gridSize = 64;        
@@ -623,7 +625,7 @@
                 countdown.text = text;
                 function animate(time) {
                     const elapsed = time - start;
-                    const duration = 1000;
+                    const duration = 1000; // SLOWED DOWN TO 1 SECOND
                     const progress = Math.min(elapsed / duration, 1);
                     countdown.scale = 1 + progress * 0.5;
                     countdown.alpha = 1 - progress;
