@@ -11,6 +11,7 @@
             --font-title: 'Luckiest Guy', Impact, sans-serif;
             --font-ui: 'Lilita One', 'Arial Black', sans-serif;
         }
+        * { box-sizing: border-box; }
         body {
             background-color: #1a1a1a;
             margin: 0;
@@ -24,63 +25,66 @@
             touch-action: none;
             -webkit-user-select: none;
             user-select: none;
-            /* Fix for blue highlight on tap */
             -webkit-tap-highlight-color: transparent;
         }
+        
         #game-container {
             position: relative;
-            box-shadow: 0 0 30px rgba(0,0,0,0.6);
+            box-shadow: 0 0 40px rgba(0,0,0,0.7);
             overflow: hidden;
             flex-shrink: 0;
-            border-radius: 4px;
+            border-radius: 12px;
+            /* Desktop Default */
+            max-width: 95vw;
+            max-height: 95vh;
         }
+        
         canvas {
             width: 100%;
             height: 100%;
             display: block;
         }
         
-        /* CONTROLS CONTAINER - Default Hidden */
+        /* CONTROLS (Mobile) */
         #mobile-controls-container {
-            position: absolute;
-            bottom: 20px;
-            left: 0;
+            position: relative;
             width: 100%;
-            display: none; /* Hidden by default */
+            display: none;
             flex-direction: column;
             align-items: center;
-            gap: 10px; /* Reduced gap to keep text close to buttons */
+            justify-content: center;
+            gap: 12px;
             z-index: 200;
-            pointer-events: none; /* Let clicks pass through empty areas */
+            padding-top: 15px;
         }
         
         #mobile-instructions {
-            color: rgba(255, 255, 255, 0.7);
+            color: rgba(255, 255, 255, 0.5);
             font-family: var(--font-ui);
-            font-size: 16px;
+            font-size: 15px;
             margin: 0;
-            padding-bottom: 5px;
             text-shadow: 0 2px 2px rgba(0,0,0,0.8);
             letter-spacing: 1px;
             text-transform: uppercase;
+            text-align: center;
         }
 
         #dpad-container {
             display: grid;
             grid-template-areas: ". up ." "left . right" ". down .";
             gap: 12px;
-            pointer-events: auto; /* Re-enable clicks for buttons */
+            pointer-events: auto;
         }
         
         .dpad-btn {
-            width: 65px;
-            height: 65px;
-            background: rgba(255, 255, 255, 0.1);
+            width: 68px;
+            height: 68px;
+            background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(4px);
-            border: 2px solid rgba(255,255,255,0.25);
+            border: 2px solid rgba(255,255,255,0.2);
             border-radius: 50%;
             color: white;
-            font-size: 24px;
+            font-size: 26px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -97,28 +101,25 @@
         #left-btn { grid-area: left; }
         #right-btn { grid-area: right; }
 
-        /* Mobile Layout Adjustments */
+        /* MOBILE FIT LOGIC */
         @media (hover: none) and (pointer: coarse) and (orientation: portrait) {
-            body { 
-                justify-content: flex-start; 
-                padding-top: 20px; 
+            body {
+                justify-content: flex-start;
+                padding-top: 2vh;
             }
-            #game-container { 
-                /* Reduce game size slightly to leave clear space at bottom for controls */
-                max-height: 60vh; 
-                width: 90vw;
+            #game-container {
+                /* Fix Height to 60% so controls fit below without scrolling */
+                max-height: 60vh;
+                width: 92vw;
             }
-            
-            /* Only show controls IF body has the 'game-loaded' class */
-            body.game-loaded #mobile-controls-container { 
+            body.game-loaded #mobile-controls-container {
                 display: flex;
-                animation: popUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                height: 35vh;
+                animation: popUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             }
         }
-
-        /* Pop-up animation for controls */
         @keyframes popUp {
-            0% { opacity: 0; transform: translateY(50px) scale(0.8); }
+            0% { opacity: 0; transform: translateY(30px) scale(0.9); }
             100% { opacity: 1; transform: translateY(0) scale(1); }
         }
     </style>
@@ -130,7 +131,6 @@
 </div>
 
 <div id="mobile-controls-container">
-    <!-- Moved Text specifically here to be part of the pop-up unit -->
     <p id="mobile-instructions">Swipe or Tap to Move</p>
     <div id="dpad-container">
         <div id="up-btn" class="dpad-btn">▲</div>
@@ -146,7 +146,7 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
 
-        // --- HD RESOLUTION SETTINGS ---
+        // --- HD LOGICAL SIZE ---
         const logicalWidth = 1024;  
         const logicalHeight = 1144; 
         const gridSize = 64;        
@@ -156,13 +156,11 @@
         const initialSpeed = 8;
         let currentSpeed = 8;
         
-        // Handle Device Pixel Ratio for Retina/High-DPI screens
         const dpr = window.devicePixelRatio || 1;
         canvas.width = logicalWidth * dpr;
         canvas.height = logicalHeight * dpr;
         ctx.scale(dpr, dpr);
 
-        // Load Fonts
         await document.fonts.load("180px 'Luckiest Guy'");
         await document.fonts.load("64px 'Lilita One'");
 
@@ -223,10 +221,16 @@
         let clickAnim = { active: false, name: '', scale: 1, start: 0 };
         let loading = { current: 0, target: 0, fadeAlpha: 1, isDone: false };
         
+        // --- BUTTON COORDINATES (For Click Detection) ---
+        // Play and Replay
         const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
         const replayBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 + 120, w: 300, h: 300 };
-        const backBtnRect = { x: 30, y: 20, w: 460, h: 80 };
-        const homeBtnRect = { x: logicalWidth - 110, y: 30, w: 80, h: 80 };
+        
+        // Back Button (Covers both Icon and Text)
+        const backBtnRect = { x: 30, y: 20, w: 450, h: 100 };
+        
+        // Home Button (Top Right)
+        const homeBtnRect = { x: logicalWidth - 140, y: 20, w: 120, h: 120 };
 
         function init() {
             snake = [{ x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }];
@@ -269,8 +273,7 @@
         }
 
         function draw(currentTime) {
-            ctx.imageSmoothingEnabled = true; // Smooth for UI
-            
+            ctx.imageSmoothingEnabled = true; 
             ctx.save();
             if (shake.isShaking) {
                 const dx = (Math.random() - 0.5) * shake.magnitude;
@@ -282,11 +285,10 @@
                 drawLoadingScreen();
                 if (assetsLoaded === totalAssets && !loading.isDone) {
                     loading.isDone = true;
-                    // --- D-PAD REVEAL LOGIC ---
-                    // When loading is finished, switch state and reveal controls
                     setTimeout(() => { 
                         gameState = 'MENU'; 
                         document.body.classList.add('game-loaded'); 
+                        resizeGame();
                     }, 500);
                 }
             }
@@ -295,7 +297,7 @@
                 drawBackground();
                 if (gameState === 'PLAYING' || gameState === 'GAMEOVER_ANIMATING' || gameState === 'COUNTDOWN') {
                     ctx.save();
-                    ctx.imageSmoothingEnabled = false; // Sharp for game assets
+                    ctx.imageSmoothingEnabled = false; 
                     drawApple(currentTime);
                     drawSnake();
                     ctx.restore();
@@ -414,18 +416,26 @@
             ctx.fillStyle = '#4A752C';
             ctx.fillRect(0, 0, logicalWidth, uiBarHeight);
 
+            // --- ANIMATED BACK BUTTON GROUP (ICON + TEXT) ---
             let backScale = (clickAnim.active && clickAnim.name === 'back') ? clickAnim.scale : 1;
+            
             ctx.save();
-            ctx.translate(40 + 24, 36 + 24);
+            // Pivot around the center of the "Back" group area (~200px from left)
+            ctx.translate(200, 60);
             ctx.scale(backScale, backScale);
-            ctx.drawImage(assets.images.arrow_back_icon, -24, -24, 48, 48);
-            ctx.restore();
-
+            ctx.translate(-200, -60);
+            
+            // Draw Icon
+            ctx.drawImage(assets.images.arrow_back_icon, 40, 36, 48, 48);
+            
+            // Draw Text
             ctx.font = "48px 'Lilita One'";
             ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
-            ctx.fillText("Back to Games", 100, 60);
+            ctx.fillText("Back to Games", 110, 60);
+            ctx.restore();
+            // ----------------------------------------------
 
             ctx.font = "180px 'Luckiest Guy'";
             ctx.fillStyle = '#87D37C';
@@ -450,12 +460,18 @@
         function drawGameOverContent(titleY, panelY, currentTime) {
             drawUIBar();
             
+            // --- ANIMATED HOME BUTTON (TOP RIGHT) ---
             let homeScale = (clickAnim.active && clickAnim.name === 'home') ? clickAnim.scale : 1;
+            const homeCenterX = logicalWidth - 80;
+            const homeCenterY = 60;
+            
             ctx.save();
-            ctx.translate(homeBtnRect.x + 32, homeBtnRect.y + 32);
+            ctx.translate(homeCenterX, homeCenterY);
             ctx.scale(homeScale, homeScale);
+            // Draw centered on 0,0
             ctx.drawImage(assets.images.home_icon, -32, -32, 64, 64);
             ctx.restore();
+            // ----------------------------------------
 
             ctx.font = "160px 'Luckiest Guy'";
             ctx.fillStyle = '#E74C3C';
@@ -685,8 +701,12 @@
                 triggerClickAnimation('play', init);
             } else if (gameState === 'GAMEOVER' && x > replayBtnRect.x && x < replayBtnRect.x + replayBtnRect.w && y > replayBtnRect.y && y < replayBtnRect.y + replayBtnRect.h) {
                 triggerClickAnimation('replay', init);
+            
+            // CHECK BACK BTN (Wide area covers text + icon)
             } else if (gameState === 'MENU' && x > backBtnRect.x && x < backBtnRect.x + backBtnRect.w && y > backBtnRect.y && y < backBtnRect.y + backBtnRect.h) {
                 triggerClickAnimation('back', () => window.location.href = "index.html");
+            
+            // CHECK HOME BTN (Square area Top Right)
             } else if (gameState === 'GAMEOVER' && x > homeBtnRect.x && x < homeBtnRect.x + homeBtnRect.w && y > homeBtnRect.y && y < homeBtnRect.y + homeBtnRect.h) {
                 triggerClickAnimation('home', () => window.location.href = "index.html");
             }
@@ -696,8 +716,13 @@
             const viewportW = window.innerWidth, viewportH = window.innerHeight;
             const gameAspect = logicalWidth / logicalHeight;
             let newW, newH;
-            if (viewportW / viewportH > gameAspect) { newH = viewportH; newW = newH * gameAspect; } 
-            else { newW = viewportW; newH = newW / gameAspect; }
+            
+            if (viewportW / viewportH > gameAspect) { 
+                newH = viewportH; newW = newH * gameAspect; 
+            } else { 
+                newW = viewportW; newH = newW / gameAspect; 
+            }
+            
             gameContainer.style.width = `${newW}px`;
             gameContainer.style.height = `${newH}px`;
         }
