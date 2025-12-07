@@ -57,8 +57,7 @@
         /* --- CONTROLS AREA --- */
         #mobile-controls-container {
             width: 100%;
-            /* HIDDEN BY DEFAULT */
-            display: none; 
+            display: none; /* Initially hidden */
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -126,7 +125,7 @@
                     border-top: 1px solid rgba(255,255,255,0.05);
                 }
 
-                /* SHOW CONTROLS ONLY WHEN LOADED */
+                /* Only show controls after loader finishes */
                 body.game-loaded #mobile-controls-container {
                     display: flex; 
                     animation: fadeUp 0.5s ease-out;
@@ -271,9 +270,11 @@
         let loading = { current: 0, target: 0, fadeAlpha: 1, isDone: false };
         let cachedBackground = null;
         
+        // Rects
         const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
         const replayBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 + 120, w: 300, h: 300 };
         const backBtnRect = { x: 30, y: 20, w: 450, h: 100 };
+        // Increase Home Button Hitbox Size for easier tapping
         const homeBtnRect = { x: logicalWidth - 140, y: 20, w: 120, h: 120 };
 
         function init() {
@@ -625,7 +626,8 @@
                 countdown.text = text;
                 function animate(time) {
                     const elapsed = time - start;
-                    const duration = 1000; // SLOWED DOWN TO 1 SECOND
+                    // Slower animation (1 second) to match standard countdowns
+                    const duration = 1000;
                     const progress = Math.min(elapsed / duration, 1);
                     countdown.scale = 1 + progress * 0.5;
                     countdown.alpha = 1 - progress;
@@ -695,6 +697,10 @@
         let touchStartX = 0, touchStartY = 0;
 
         canvas.addEventListener('touchstart', (e) => {
+            // Priority: Check if a UI button was tapped first
+            // If handleInput returns true, it means a button was clicked, so stop swipe logic
+            if (handleInput(e.touches[0].clientX, e.touches[0].clientY)) return;
+
             if (e.target.closest('#mobile-controls-container')) return;
             if (gameState === 'PLAYING') {
                 touchStartX = e.touches[0].clientX;
@@ -738,22 +744,34 @@
             requestAnimationFrame(animateClick);
         }
 
-        canvas.addEventListener('click', (e) => {
+        // --- UNIFIED INPUT HANDLER (TOUCH + CLICK) ---
+        function handleInput(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = logicalWidth / rect.width;
             const scaleY = logicalHeight / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
+            const x = (clientX - rect.left) * scaleX;
+            const y = (clientY - rect.top) * scaleY;
+
+            let handled = false;
 
             if (gameState === 'MENU' && x > playBtnRect.x && x < playBtnRect.x + playBtnRect.w && y > playBtnRect.y && y < playBtnRect.y + playBtnRect.h) {
                 triggerClickAnimation('play', init);
+                handled = true;
             } else if (gameState === 'GAMEOVER' && x > replayBtnRect.x && x < replayBtnRect.x + replayBtnRect.w && y > replayBtnRect.y && y < replayBtnRect.y + replayBtnRect.h) {
                 triggerClickAnimation('replay', init);
+                handled = true;
             } else if (gameState === 'MENU' && x > backBtnRect.x && x < backBtnRect.x + backBtnRect.w && y > backBtnRect.y && y < backBtnRect.y + backBtnRect.h) {
                 triggerClickAnimation('back', () => window.location.href = "index.html");
+                handled = true;
             } else if (gameState === 'GAMEOVER' && x > homeBtnRect.x && x < homeBtnRect.x + homeBtnRect.w && y > homeBtnRect.y && y < homeBtnRect.y + homeBtnRect.h) {
                 triggerClickAnimation('home', () => window.location.href = "index.html");
+                handled = true;
             }
+            return handled;
+        }
+
+        canvas.addEventListener('click', (e) => {
+            handleInput(e.clientX, e.clientY);
         });
         
         gameState = 'LOADING';
