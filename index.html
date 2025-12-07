@@ -10,14 +10,15 @@
         :root {
             --font-title: 'Luckiest Guy', Impact, sans-serif;
             --font-ui: 'Lilita One', 'Arial Black', sans-serif;
+            --bg-color: #1a1a1a;
         }
         * { box-sizing: border-box; }
+        
         body {
-            background-color: #1a1a1a;
+            background-color: var(--bg-color);
             margin: 0;
             overflow: hidden;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
@@ -28,63 +29,79 @@
             -webkit-tap-highlight-color: transparent;
         }
         
+        /* 
+           LAYOUT CONTAINER 
+           Wraps Game + Controls to handle orientation switching
+        */
+        #main-layout {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.3s;
+        }
+
+        /* GAME CONTAINER */
         #game-container {
             position: relative;
-            box-shadow: 0 0 40px rgba(0,0,0,0.7);
             overflow: hidden;
             flex-shrink: 0;
             border-radius: 12px;
-            max-width: 95vw;
-            max-height: 95vh;
-            background: #4A752C; /* Fallback color */
+            /* Shadow and Border only show when game is loaded */
+            box-shadow: none; 
+            background: var(--bg-color);
         }
         
+        /* When game is loaded, we apply the distinct look */
+        body.game-loaded #game-container {
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            background: #4A752C;
+        }
+
         canvas {
             width: 100%;
             height: 100%;
             display: block;
         }
         
-        /* CONTROLS (Mobile) */
+        /* CONTROLS CONTAINER */
         #mobile-controls-container {
-            position: relative;
-            width: 100%;
-            display: none;
+            display: none; /* Hidden during load */
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 12px;
             z-index: 200;
-            padding-top: 15px;
         }
         
         #mobile-instructions {
             color: rgba(255, 255, 255, 0.5);
             font-family: var(--font-ui);
-            font-size: 15px;
-            margin: 0;
+            font-size: 14px;
+            margin-bottom: 10px;
             text-shadow: 0 2px 2px rgba(0,0,0,0.8);
             letter-spacing: 1px;
             text-transform: uppercase;
             text-align: center;
+            white-space: nowrap;
         }
 
         #dpad-container {
             display: grid;
             grid-template-areas: ". up ." "left . right" ". down .";
-            gap: 12px;
+            gap: 10px;
             pointer-events: auto;
         }
         
         .dpad-btn {
-            width: 68px;
-            height: 68px;
+            width: 60px;
+            height: 60px;
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(4px);
             border: 2px solid rgba(255,255,255,0.2);
             border-radius: 50%;
             color: white;
-            font-size: 26px;
+            font-size: 24px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -101,41 +118,82 @@
         #left-btn { grid-area: left; }
         #right-btn { grid-area: right; }
 
-        /* MOBILE FIT LOGIC */
-        @media (hover: none) and (pointer: coarse) and (orientation: portrait) {
-            body {
-                justify-content: flex-start;
-                padding-top: 2vh;
+        /* =========================================
+           RESPONSIVE ORIENTATION RULES 
+           ========================================= */
+
+        /* PORTRAIT (Vertical Phone/Tab) */
+        @media (orientation: portrait) {
+            #main-layout {
+                flex-direction: column;
             }
             #game-container {
-                max-height: 60vh;
-                width: 92vw;
+                width: 95vw;
+                max-height: 65vh; /* Game takes top 65% */
+                aspect-ratio: 1024/1144;
             }
             body.game-loaded #mobile-controls-container {
                 display: flex;
-                height: 35vh;
-                animation: popUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                width: 100%;
+                height: 35vh; /* Controls take bottom 35% */
+                animation: popUp 0.5s ease-out;
             }
         }
+
+        /* LANDSCAPE (Horizontal Phone/Tab) */
+        @media (orientation: landscape) {
+            #main-layout {
+                flex-direction: row;
+                padding: 10px;
+                gap: 20px;
+            }
+            #game-container {
+                height: 95vh;
+                max-width: 70vw; /* Game takes left 70% */
+                aspect-ratio: 1024/1144;
+            }
+            body.game-loaded #mobile-controls-container {
+                display: flex;
+                width: 30vw; /* Controls take right 30% */
+                height: 100%;
+                justify-content: center;
+                animation: popInRight 0.5s ease-out;
+            }
+            /* Make buttons slightly smaller in landscape to fit tight spaces */
+            .dpad-btn { width: 55px; height: 55px; font-size: 20px; }
+        }
+
+        /* Desktop override (Mouse users don't need dpad) */
+        @media (hover: hover) and (pointer: fine) {
+            #mobile-controls-container { display: none !important; }
+            #game-container { max-height: 95vh; max-width: 95vw; }
+        }
+
         @keyframes popUp {
-            0% { opacity: 0; transform: translateY(30px) scale(0.9); }
-            100% { opacity: 1; transform: translateY(0) scale(1); }
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes popInRight {
+            0% { opacity: 0; transform: translateX(20px); }
+            100% { opacity: 1; transform: translateX(0); }
         }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <canvas id="gameCanvas"></canvas>
-</div>
+<div id="main-layout">
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+    </div>
 
-<div id="mobile-controls-container">
-    <p id="mobile-instructions">Swipe or Tap to Move</p>
-    <div id="dpad-container">
-        <div id="up-btn" class="dpad-btn">▲</div>
-        <div id="left-btn" class="dpad-btn">◀</div>
-        <div id="right-btn" class="dpad-btn">▶</div>
-        <div id="down-btn" class="dpad-btn">▼</div>
+    <div id="mobile-controls-container">
+        <p id="mobile-instructions">Swipe or Tap to Move</p>
+        <div id="dpad-container">
+            <div id="up-btn" class="dpad-btn">▲</div>
+            <div id="left-btn" class="dpad-btn">◀</div>
+            <div id="right-btn" class="dpad-btn">▶</div>
+            <div id="down-btn" class="dpad-btn">▼</div>
+        </div>
     </div>
 </div>
 
@@ -146,6 +204,7 @@
         const ctx = canvas.getContext('2d', { alpha: false });
 
         // --- HD LOGICAL SIZE ---
+        // We stick to a near-square ratio which scales well on both orientations
         const logicalWidth = 1024;  
         const logicalHeight = 1144; 
         const gridSize = 64;        
@@ -155,6 +214,7 @@
         const initialSpeed = 8;
         let currentSpeed = 8;
         
+        // Setup Retina/HD scaling
         const dpr = window.devicePixelRatio || 1;
         canvas.width = logicalWidth * dpr;
         canvas.height = logicalHeight * dpr;
@@ -199,14 +259,12 @@
         let assetsLoaded = 0;
         const totalAssets = Object.keys(assetUrls.images).length + Object.keys(assetUrls.sounds).length;
 
-        // --- OPTIMIZATION: Sound Pooling for Move Sound ---
-        // Creates multiple copies of the move sound to allow rapid overlapping playback
+        // --- SOUND POOLING (Fixes overlapping sound issues) ---
         const moveSoundPool = [];
         const POOL_SIZE = 5;
 
         function onAssetLoad() { 
             assetsLoaded++;
-            // When move sound is loaded, initialize the pool
             if (assetsLoaded === totalAssets) {
                 for(let i=0; i<POOL_SIZE; i++) {
                     const s = new Audio(assetUrls.sounds.move);
@@ -229,9 +287,7 @@
         assets.sounds.background.loop = true;
         assets.sounds.background.volume = 0.15;
 
-        // Helper to play overlapping sounds
         function playMoveSound() {
-            // Find a sound in the pool that is paused or finished
             const sound = moveSoundPool.find(s => s.paused) || moveSoundPool[0];
             if (sound) {
                 sound.currentTime = 0;
@@ -244,9 +300,9 @@
         let gameOverAnim = { titleY: -200, panelY: -200, start: 0 };
         let clickAnim = { active: false, name: '', scale: 1, start: 0 };
         let loading = { current: 0, target: 0, fadeAlpha: 1, isDone: false };
-        let cachedBackground = null; // Background Optimization
+        let cachedBackground = null;
         
-        // Rects
+        // Logical Hitboxes
         const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
         const replayBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 + 120, w: 300, h: 300 };
         const backBtnRect = { x: 30, y: 20, w: 450, h: 100 };
@@ -257,13 +313,12 @@
             score = 0;
             currentSpeed = initialSpeed;
             currentDirection = { x: 1, y: 0 };
-            moveQueue = []; // Reset input queue
+            moveQueue = []; 
             spawnApple();
             startCountdown();
         }
         
         function update() {
-            // Process the next move from the queue
             if (moveQueue.length > 0) {
                 currentDirection = moveQueue.shift();
             }
@@ -272,7 +327,6 @@
             const gridW = logicalWidth / gridSize;
             const gridH = gameAreaHeight / gridSize;
 
-            // Collision Check
             if (head.x < 0 || head.x >= gridW || head.y < 0 || head.y >= gridH || snake.some(p => p.x === head.x && p.y === head.y)) {
                 endGame(); return;
             }
@@ -311,12 +365,10 @@
                 drawLoadingScreen();
                 if (assetsLoaded === totalAssets && !loading.isDone) {
                     loading.isDone = true;
-                    // Pre-render background once loading is done
                     createCachedBackground();
                     setTimeout(() => { 
                         gameState = 'MENU'; 
                         document.body.classList.add('game-loaded'); 
-                        resizeGame();
                     }, 500);
                 }
             }
@@ -339,7 +391,6 @@
             ctx.restore();
         }
         
-        // --- OPTIMIZATION: Cached Background ---
         function createCachedBackground() {
             const bgCanvas = document.createElement('canvas');
             bgCanvas.width = logicalWidth;
@@ -359,7 +410,6 @@
             if (cachedBackground) {
                 ctx.drawImage(cachedBackground, 0, 0);
             } else {
-                // Fallback if not cached yet
                 ctx.fillStyle = '#4A752C';
                 ctx.fillRect(0, 0, logicalWidth, logicalHeight);
             }
@@ -373,8 +423,10 @@
                 loading.fadeAlpha -= 0.05;
                 ctx.globalAlpha = Math.max(0, loading.fadeAlpha);
             }
+            // Seamless background for loading
             ctx.fillStyle = '#1a1a1a';
             ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+            
             ctx.font = "64px 'Lilita One'";
             ctx.fillStyle = '#FFF';
             ctx.textAlign = 'center';
@@ -458,7 +510,7 @@
         }
         
         function drawHomeScreen(currentTime) {
-            drawBackground(); // Ensure BG is drawn
+            drawBackground(); 
 
             let backScale = (clickAnim.active && clickAnim.name === 'back') ? clickAnim.scale : 1;
             
@@ -641,18 +693,12 @@
             triggerShake();
         }
         
-        // --- INPUT QUEUE SYSTEM (Prevents Stuck Inputs) ---
         function setDirection(dir) {
              if (gameState !== 'PLAYING') return;
-             
-             // Get the last planned move (or current direction if queue is empty)
              const lastMove = moveQueue.length > 0 ? moveQueue[moveQueue.length - 1] : currentDirection;
-             
-             // Prevent reversing into self based on the *last planned move*
              if (dir.x !== 0 && lastMove.x !== 0) return;
              if (dir.y !== 0 && lastMove.y !== 0) return;
              
-             // Max queue size to prevent input flooding
              if(moveQueue.length < 3) {
                  moveQueue.push(dir);
                  playMoveSound();
@@ -684,14 +730,12 @@
         });
 
         let touchStartX = 0, touchStartY = 0;
-        let lastSwipeDirection = null;
 
         canvas.addEventListener('touchstart', (e) => {
             if (e.target.closest('#mobile-controls-container')) return;
             if (gameState === 'PLAYING') {
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
-                lastSwipeDirection = null;
             }
         }, { passive: false });
 
@@ -703,16 +747,13 @@
             
             if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
                 if (Math.abs(dx) > Math.abs(dy)) {
-                    if (lastSwipeDirection !== 'h') {
-                        setDirection({ x: dx > 0 ? 1 : -1, y: 0 });
-                        lastSwipeDirection = 'h';
-                    }
+                    setDirection({ x: dx > 0 ? 1 : -1, y: 0 });
                 } else {
-                     if (lastSwipeDirection !== 'v') {
-                        setDirection({ x: 0, y: dy > 0 ? 1 : -1 });
-                        lastSwipeDirection = 'v';
-                    }
+                    setDirection({ x: 0, y: dy > 0 ? 1 : -1 });
                 }
+                // Reset to prevent continuous scrolling trigger
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
             }
         }, { passive: false });
 
@@ -746,36 +787,15 @@
                 triggerClickAnimation('play', init);
             } else if (gameState === 'GAMEOVER' && x > replayBtnRect.x && x < replayBtnRect.x + replayBtnRect.w && y > replayBtnRect.y && y < replayBtnRect.y + replayBtnRect.h) {
                 triggerClickAnimation('replay', init);
-            
-            // CHECK BACK BTN (Wide area covers text + icon)
             } else if (gameState === 'MENU' && x > backBtnRect.x && x < backBtnRect.x + backBtnRect.w && y > backBtnRect.y && y < backBtnRect.y + backBtnRect.h) {
                 triggerClickAnimation('back', () => window.location.href = "index.html");
-            
-            // CHECK HOME BTN (Square area Top Right)
             } else if (gameState === 'GAMEOVER' && x > homeBtnRect.x && x < homeBtnRect.x + homeBtnRect.w && y > homeBtnRect.y && y < homeBtnRect.y + homeBtnRect.h) {
                 triggerClickAnimation('home', () => window.location.href = "index.html");
             }
         });
-
-        function resizeGame() {
-            const viewportW = window.innerWidth, viewportH = window.innerHeight;
-            const gameAspect = logicalWidth / logicalHeight;
-            let newW, newH;
-            
-            if (viewportW / viewportH > gameAspect) { 
-                newH = viewportH; newW = newH * gameAspect; 
-            } else { 
-                newW = viewportW; newH = newW / gameAspect; 
-            }
-            
-            gameContainer.style.width = `${newW}px`;
-            gameContainer.style.height = `${newH}px`;
-        }
         
         gameState = 'LOADING';
         requestAnimationFrame(drawLoop); 
-        window.addEventListener('resize', resizeGame);
-        resizeGame();
     });
 </script>
 </body>
