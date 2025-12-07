@@ -30,49 +30,57 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.6);
             overflow: hidden;
             flex-shrink: 0;
+            background: #4A752C;
         }
         canvas {
             width: 100%;
             height: 100%;
             display: block;
         }
-        /* Mobile Controls UI - HIDDEN INITIALLY */
+        
+        /* Mobile Controls UI */
         #mobile-controls-container {
             position: absolute;
-            bottom: 2vh; 
+            bottom: 0;
             left: 0;
             width: 100%;
-            display: none; /* Controlled by JS */
+            height: auto;
+            padding-bottom: 20px;
+            display: none; /* Hidden by default, shown via JS after load */
             flex-direction: column;
             align-items: center;
             justify-content: flex-end;
             gap: 10px;
             z-index: 200;
-            pointer-events: none; /* Let touches pass through surrounding areas */
+            pointer-events: none; /* Let clicks pass through empty areas */
         }
+        
         #mobile-instructions {
             color: #fff;
             font-family: var(--font-ui);
             font-size: 18px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
             text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-            margin-bottom: 5px;
-            pointer-events: none;
+            margin: 0 0 5px 0;
+            pointer-events: auto;
+            background: rgba(0,0,0,0.3);
+            padding: 5px 15px;
+            border-radius: 10px;
         }
+
         #dpad-container {
             display: grid;
             grid-template-areas: ". up ." "left . right" ". down .";
             gap: 15px;
-            pointer-events: auto; /* Re-enable clicks for buttons */
-            padding-bottom: 10px;
+            pointer-events: auto;
+            margin-bottom: 10px;
         }
+        
         .dpad-btn {
             width: 70px;
             height: 70px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(4px);
-            border: 2px solid rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255,255,255,0.4);
             border-radius: 50%;
             color: white;
             font-size: 28px;
@@ -81,26 +89,26 @@
             align-items: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             transition: transform 0.1s ease, background-color 0.1s ease;
+            cursor: pointer;
             -webkit-tap-highlight-color: transparent;
         }
         .dpad-btn:active, .dpad-btn--active {
-            transform: scale(0.9);
+            transform: scale(0.92);
             background: rgba(255,255,255,0.4);
-            border-color: #fff;
         }
         #up-btn { grid-area: up; }
         #down-btn { grid-area: down; }
         #left-btn { grid-area: left; }
         #right-btn { grid-area: right; }
 
-        /* Media Query: Only show controls on Touch Devices or Small Screens */
+        /* Tablet/Mobile Adjustments */
         @media (hover: none) and (pointer: coarse) {
-            #mobile-controls-container.visible {
-                display: flex;
+            body { 
+                justify-content: flex-start; 
+                padding-top: 20px; 
             }
-            #game-container {
-                /* Make room for controls on portrait mobile */
-                max-height: 65vh; 
+            #game-container { 
+                border-radius: 4px;
             }
         }
     </style>
@@ -111,6 +119,7 @@
     <canvas id="gameCanvas"></canvas>
 </div>
 
+<!-- Controls live outside the canvas so they overlay properly but don't interfere with rendering -->
 <div id="mobile-controls-container">
     <p id="mobile-instructions">Swipe or Tap to Move</p>
     <div id="dpad-container">
@@ -124,26 +133,31 @@
 <script>
     document.addEventListener('DOMContentLoaded', async () => {
         const gameContainer = document.getElementById('game-container');
-        const mobileControls = document.getElementById('mobile-controls-container');
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
+        const controlsContainer = document.getElementById('mobile-controls-container');
 
-        // --- HD RESOLUTION SETTINGS ---
-        const logicalWidth = 1024;
-        const logicalHeight = 1144;
-        const gridSize = 64; 
-        const uiBarHeight = 120; // Header Height
+        // --- HD RESOLUTION SETTINGS (Ultra Clear) ---
+        const logicalWidth = 1024;  
+        const logicalHeight = 1144; 
+        const gridSize = 64;        
+        const uiBarHeight = 120;    
         const gameAreaHeight = 1024;
         
+        const initialSpeed = 8;
+        let currentSpeed = 8;
+        
+        // Handle High-DPI
         const dpr = window.devicePixelRatio || 1;
         canvas.width = logicalWidth * dpr;
         canvas.height = logicalHeight * dpr;
         ctx.scale(dpr, dpr);
 
+        // Load HD Fonts
         await document.fonts.load("180px 'Luckiest Guy'");
         await document.fonts.load("64px 'Lilita One'");
+        await document.fonts.load("48px 'Lilita One'");
 
-        // --- ASSETS ---
         const assetUrls = {
             images: { 
                 apple: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_cs/se_ge_1_as_cs_1/ae_ce.png?raw=true', 
@@ -195,26 +209,24 @@
         assets.sounds.background.loop = true;
         assets.sounds.background.volume = 0.15;
 
-        // --- GAME VARIABLES ---
         let snake, apple, score, direction, nextDirection, gameState, gameLoopInterval;
         let countdown = { text: '', alpha: 0, scale: 1 };
         let gameOverAnim = { titleY: -200, panelY: -200, start: 0 };
         let clickAnim = { active: false, name: '', scale: 1, start: 0 };
         let loading = { current: 0, target: 0, fadeAlpha: 1, isDone: false };
         
-        // --- BUTTON ZONES (1024px coordinate space) ---
-        // Header is 120px high. Center icons vertically at y=60.
-        // Icons are roughly 64px, hitboxes 100px.
-        const backBtnRect = { x: 20, y: 20, w: 400, h: 80 }; // Wide to cover text "Back to Games"
-        const homeBtnRect = { x: logicalWidth - 100, y: 20, w: 80, h: 80 }; // Top Right
-        
+        // --- BUTTON POSITIONS (Calculated for HD Canvas) ---
         const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
         const replayBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 + 120, w: 300, h: 300 };
+        // Back Button (Left Header)
+        const backBtnRect = { x: 30, y: 30, w: 350, h: 64 };
+        // Home Button (Right Header - Middle)
+        const homeBtnRect = { x: logicalWidth - 100, y: (uiBarHeight - 64) / 2, w: 64, h: 64 };
 
         function init() {
             snake = [{ x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }];
             score = 0;
-            currentSpeed = 8;
+            currentSpeed = initialSpeed;
             direction = { x: 1, y: 0 };
             nextDirection = { x: 1, y: 0 };
             spawnApple();
@@ -252,7 +264,7 @@
         }
 
         function draw(currentTime) {
-            ctx.imageSmoothingEnabled = true; // Default to smooth for UI
+            ctx.imageSmoothingEnabled = true; // Enable for Text/UI
             
             ctx.save();
             if (shake.isShaking) {
@@ -261,35 +273,38 @@
                 ctx.translate(dx, dy);
             }
 
-            // LOADING STATE
             if (gameState === 'LOADING' || loading.fadeAlpha > 0) {
                 drawLoadingScreen();
                 if (assetsLoaded === totalAssets && !loading.isDone) {
                     loading.isDone = true;
-                    // SHOW CONTROLS NOW if on mobile
-                    mobileControls.classList.add('visible'); 
-                    setTimeout(() => { gameState = 'MENU'; }, 500);
+                    // SHOW CONTROLS NOW, NOT BEFORE
+                    setTimeout(() => { 
+                        gameState = 'MENU'; 
+                        // Only show controls if device is likely touch
+                        if (window.matchMedia("(pointer: coarse)").matches) {
+                            controlsContainer.style.display = 'flex';
+                            resizeGame(); // Re-calc layout
+                        }
+                    }, 500);
                 }
             }
             
             if (gameState !== 'LOADING') {
                 drawBackground();
-                
-                // GAME PLAY ELEMENTS (Pixel Art Sharpness)
                 if (gameState === 'PLAYING' || gameState === 'GAMEOVER_ANIMATING' || gameState === 'COUNTDOWN') {
+                    // Disable smoothing for sharp pixel art
                     ctx.save();
                     ctx.imageSmoothingEnabled = false;
                     drawApple(currentTime);
                     drawSnake();
                     ctx.restore();
                     
-                    drawUIBar(); // Draw Score
+                    drawUIBar();
                 }
                 
-                // UI SCREENS
                 if (gameState === 'MENU') drawHomeScreen(currentTime);
                 else if (gameState === 'GAMEOVER_ANIMATING') drawGameOverAnimation(currentTime);
-                else if (gameState === 'GAMEOVER') drawGameOverScreen(currentTime);
+                else if (gameState === 'GAMEOVER') drawGameOverScreen(currentTime, true);
                 else if (gameState === 'COUNTDOWN') drawCountdown();
             }
             ctx.restore();
@@ -298,7 +313,6 @@
         function drawBackground() {
             ctx.fillStyle = '#4A752C';
             ctx.fillRect(0, 0, logicalWidth, logicalHeight);
-            // Draw Checkerboard
             for (let i = 0; i < 16; i++) for (let j = 0; j < 16; j++) {
                 ctx.fillStyle = (i + j) % 2 === 0 ? '#a2d149' : '#aad751';
                 ctx.fillRect(i * gridSize, j * gridSize + uiBarHeight, gridSize, gridSize);
@@ -308,6 +322,7 @@
         function drawLoadingScreen() {
             loading.target = assetsLoaded / totalAssets;
             loading.current += (loading.target - loading.current) * 0.1;
+
             if (loading.isDone && loading.fadeAlpha > 0) {
                 loading.fadeAlpha -= 0.05;
                 ctx.globalAlpha = Math.max(0, loading.fadeAlpha);
@@ -317,14 +332,18 @@
             ctx.font = "64px 'Lilita One'";
             ctx.fillStyle = '#FFF';
             ctx.textAlign = 'center';
-            ctx.fillText('Loading Assets...', logicalWidth / 2, logicalHeight / 2 - 80);
+            ctx.fillText('Loading Game...', logicalWidth / 2, logicalHeight / 2 - 80);
             
-            const barX = logicalWidth / 2 - 300, barY = logicalHeight / 2;
+            const barX = logicalWidth / 2 - 300, barY = logicalHeight / 2, barW = 600, barH = 40;
             ctx.fillStyle = '#444';
-            ctx.beginPath(); ctx.roundRect(barX, barY, 600, 40, 20); ctx.fill();
+            ctx.beginPath();
+            ctx.roundRect(barX, barY, barW, barH, 20);
+            ctx.fill();
             if (loading.current > 0) {
                 ctx.fillStyle = '#FFC700';
-                ctx.beginPath(); ctx.roundRect(barX, barY, 600 * loading.current, 40, 20); ctx.fill();
+                ctx.beginPath();
+                ctx.roundRect(barX, barY, barW * loading.current, barH, 20);
+                ctx.fill();
             }
             ctx.globalAlpha = 1;
         }
@@ -340,7 +359,8 @@
             ctx.drawImage(assets.images.apple, 40, uiBarHeight / 2 - 32, 64, 64);
             ctx.restore();
             
-            ctx.shadowColor = "rgba(0,0,0,0.3)"; ctx.shadowBlur = 5;
+            ctx.shadowColor = "rgba(0,0,0,0.3)";
+            ctx.shadowBlur = 5;
             ctx.fillText(score, 130, uiBarHeight / 2 + 4);
             ctx.shadowBlur = 0;
         }
@@ -355,35 +375,30 @@
         
         function getSegmentImage(index) {
             const segment = snake[index];
-            const p = snake[index - 1]; // previous (towards head)
-            const n = snake[index + 1]; // next (towards tail)
+            const segmentBefore = snake[index - 1];
+            const segmentAfter = snake[index + 1];
 
-            // Head
             if (index === 0) {
                 if (direction.x === 1) return assets.images.head_right;
                 if (direction.x === -1) return assets.images.head_left;
                 if (direction.y === 1) return assets.images.head_down;
                 if (direction.y === -1) return assets.images.head_up;
-            } 
-            // Tail
-            else if (!n) {
-                if (p.x < segment.x) return assets.images.tail_right;
-                if (p.x > segment.x) return assets.images.tail_left;
-                if (p.y < segment.y) return assets.images.tail_down;
-                if (p.y > segment.y) return assets.images.tail_up;
-            } 
-            // Body
-            else {
-                if (p.x === n.x) return assets.images.body_v;
-                if (p.y === n.y) return assets.images.body_h;
-                
-                // Turns
-                if ((p.y < segment.y && n.x < segment.x) || (p.x < segment.x && n.y < segment.y)) return assets.images.body_tl;
-                if ((p.y < segment.y && n.x > segment.x) || (p.x > segment.x && n.y < segment.y)) return assets.images.body_tr;
-                if ((p.y > segment.y && n.x < segment.x) || (p.x < segment.x && n.y > segment.y)) return assets.images.body_bl;
-                if ((p.y > segment.y && n.x > segment.x) || (p.x > segment.x && n.y > segment.y)) return assets.images.body_br;
+            } else if (!segmentAfter) {
+                const from = segmentBefore;
+                if (from.x < segment.x) return assets.images.tail_right;
+                if (from.x > segment.x) return assets.images.tail_left;
+                if (from.y < segment.y) return assets.images.tail_down;
+                if (from.y > segment.y) return assets.images.tail_up;
+            } else {
+                if (segmentBefore.x === segmentAfter.x) return assets.images.body_v;
+                if (segmentBefore.y === segmentAfter.y) return assets.images.body_h;
+                const p = segmentBefore, n = segmentAfter, c = segment;
+                if ((p.y < c.y && n.x < c.x) || (p.x < c.x && n.y < c.y)) return assets.images.body_tl;
+                if ((p.y < c.y && n.x > c.x) || (p.x > c.x && n.y < c.y)) return assets.images.body_tr;
+                if ((p.y > c.y && n.x < c.x) || (p.x < c.x && n.y > c.y)) return assets.images.body_bl;
+                if ((p.y > c.y && n.x > c.x) || (p.x > c.x && n.y > c.y)) return assets.images.body_br;
             }
-            return assets.images.body_h; // Fallback
+            return null;
         }
 
         function drawSnake() {
@@ -396,28 +411,29 @@
             });
         }
         
+        // --- HOME SCREEN ---
         function drawHomeScreen(currentTime) {
             ctx.fillStyle = '#4A752C';
             ctx.fillRect(0, 0, logicalWidth, uiBarHeight);
 
-            // Back Icon Animation & Draw (Top Left)
+            // ANIMATED BACK BUTTON
             let backScale = (clickAnim.active && clickAnim.name === 'back') ? clickAnim.scale : 1;
             ctx.save();
-            const backCx = backBtnRect.x + 24;
-            const backCy = backBtnRect.y + 40; // Center vertically in rect (rect h=80, y=20 -> center=60)
-            ctx.translate(backCx, backCy);
+            // Center of back button icon for scaling
+            let backCX = backBtnRect.x + 32;
+            let backCY = backBtnRect.y + 32;
+            ctx.translate(backCX, backCY);
             ctx.scale(backScale, backScale);
-            ctx.drawImage(assets.images.arrow_back_icon, -24, -24, 48, 48);
+            ctx.drawImage(assets.images.arrow_back_icon, -32, -32, 64, 64);
             ctx.restore();
 
-            // Back Text
             ctx.font = "48px 'Lilita One'";
             ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
-            ctx.fillText("Back to Games", 90, 60);
+            ctx.fillText("Back to Games", backBtnRect.x + 80, backBtnRect.y + 35);
 
-            // Title
+            // Title and Play Button
             ctx.font = "180px 'Luckiest Guy'";
             ctx.fillStyle = '#87D37C';
             ctx.textAlign = 'center';
@@ -426,26 +442,29 @@
             ctx.strokeText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 240);
             ctx.fillText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 240);
 
-            // Play Button
             let playScale = (clickAnim.active && clickAnim.name === 'play') ? clickAnim.scale : (1 + Math.sin(currentTime / 300) * 0.05);
             const w = playBtnRect.w * playScale;
             const h = playBtnRect.h * playScale;
-            ctx.drawImage(assets.images.playBtn, playBtnRect.x - (w - playBtnRect.w)/2, playBtnRect.y - (h - playBtnRect.h)/2, w, h);
+            const x = playBtnRect.x - (w - playBtnRect.w) / 2;
+            const y = playBtnRect.y - (h - playBtnRect.h) / 2;
+            ctx.drawImage(assets.images.playBtn, x, y, w, h);
         }
         
-        function drawGameOverScreen(currentTime) {
+        // --- GAMEOVER SCREEN ---
+        function drawGameOverScreen(currentTime, isFinal) {
             drawGameOverContent(gameOverAnim.titleY, gameOverAnim.panelY, currentTime);
         }
         
         function drawGameOverContent(titleY, panelY, currentTime) {
             drawUIBar();
             
-            // Home Icon Animation & Draw (Top Right)
+            // ANIMATED HOME ICON (Right Side)
             let homeScale = (clickAnim.active && clickAnim.name === 'home') ? clickAnim.scale : 1;
             ctx.save();
-            const homeCx = homeBtnRect.x + homeBtnRect.w / 2;
-            const homeCy = homeBtnRect.y + homeBtnRect.h / 2;
-            ctx.translate(homeCx, homeCy);
+            // Center of home icon
+            let homeCX = homeBtnRect.x + (homeBtnRect.w/2);
+            let homeCY = homeBtnRect.y + (homeBtnRect.h/2);
+            ctx.translate(homeCX, homeCY);
             ctx.scale(homeScale, homeScale);
             ctx.drawImage(assets.images.home_icon, -32, -32, 64, 64);
             ctx.restore();
@@ -454,6 +473,7 @@
             ctx.font = "160px 'Luckiest Guy'";
             ctx.fillStyle = '#E74C3C';
             ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
             ctx.strokeStyle = '#000';
             ctx.lineWidth = 14;
             ctx.strokeText("GAME OVER", logicalWidth / 2, titleY);
@@ -464,7 +484,10 @@
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.roundRect(panelX, panelY, panelW, panelH, 40); ctx.fill(); ctx.stroke();
+            ctx.beginPath();
+            ctx.roundRect(panelX, panelY, panelW, panelH, 40);
+            ctx.fill();
+            ctx.stroke();
 
             const bestTarget = score + 10;
             ctx.font = "64px 'Lilita One'";
@@ -477,29 +500,31 @@
             let replayScale = (clickAnim.active && clickAnim.name === 'replay') ? clickAnim.scale : (1 + Math.sin(currentTime / 300) * 0.05);
             const w = replayBtnRect.w * replayScale;
             const h = replayBtnRect.h * replayScale;
-            // Position relative to panel
-            const replayY = (panelY + panelH + 40); 
-            // Note: Update global rect Y for click detection if animating
-            if(gameState === 'GAMEOVER') replayBtnRect.y = replayY;
-            
-            ctx.drawImage(assets.images.replayBtn, replayBtnRect.x - (w - replayBtnRect.w)/2, replayY - (h - replayBtnRect.h)/2, w, h);
+            const x = replayBtnRect.x - (w - replayBtnRect.w) / 2;
+            const y = (panelY + panelH + 40) + (300-h)/2;
+            ctx.drawImage(assets.images.replayBtn, x, y, w, h);
         }
         
         function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 
         function drawGameOverAnimation(currentTime) {
+            const duration = 500;
             if (!gameOverAnim.start) gameOverAnim.start = currentTime;
-            const progress = Math.min((currentTime - gameOverAnim.start) / 500, 1);
-            const val = easeOutCubic(progress);
+            const elapsed = currentTime - gameOverAnim.start;
+            const progress = Math.min(elapsed / duration, 1);
+            const easedProgress = easeOutCubic(progress);
 
-            gameOverAnim.titleY = -200 + (logicalHeight / 2 - 280 - -200) * val;
-            gameOverAnim.panelY = -200 + (logicalHeight / 2 - 120 - -200) * val;
+            const titleStartY = -200, titleEndY = logicalHeight / 2 - 280;
+            gameOverAnim.titleY = titleStartY + (titleEndY - titleStartY) * easedProgress;
+
+            const panelStartY = -200, panelEndY = logicalHeight / 2 - 120;
+            gameOverAnim.panelY = panelStartY + (panelEndY - panelStartY) * easedProgress;
             
-            drawGameOverScreen(currentTime);
+            drawGameOverScreen(currentTime, false);
 
             if (progress >= 1) {
                 gameState = 'GAMEOVER';
-                replayBtnRect.y = gameOverAnim.panelY + 260; // Final position
+                replayBtnRect.y = (gameOverAnim.panelY + 220 + 40);
             }
         }
 
@@ -525,30 +550,31 @@
         async function startCountdown() {
             gameState = 'COUNTDOWN';
             
-            // PLAY SOUND ONCE
+            // Fix: Play sound immediately when countdown starts
             try {
                 assets.sounds.countdown.currentTime = 0;
+                assets.sounds.countdown.volume = 0.5;
                 assets.sounds.countdown.play().catch(()=>{});
             } catch (e) {}
 
-            const sequence = ['3', '2', '1', 'GO!'];
-            for (const text of sequence) {
-                // Adjust timing to sync with sound (approx 800ms per beat)
-                await animateCountdownText(text); 
-            }
+            // Timed sequence to match sound (approx 1 sec per beat)
+            await animateCountdownText('3', 900);
+            await animateCountdownText('2', 900);
+            await animateCountdownText('1', 900);
+            await animateCountdownText('GO!', 500);
+
             gameState = 'PLAYING';
             assets.sounds.background.currentTime = 0;
             assets.sounds.background.play();
             gameLoopInterval = setInterval(gameLoop, 1000 / currentSpeed);
         }
 
-        function animateCountdownText(text) {
+        function animateCountdownText(text, duration) {
             return new Promise(resolve => {
                 let start = performance.now();
                 countdown.text = text;
                 function animate(time) {
                     const elapsed = time - start;
-                    const duration = 800; // Duration per number to match audio
                     const progress = Math.min(elapsed / duration, 1);
                     countdown.scale = 1 + progress * 0.5;
                     countdown.alpha = 1 - progress;
@@ -599,13 +625,12 @@
             else if (key === 'arrowright' || key === 'd') setDirection({ x: 1, y: 0 });
         });
         
-        // --- MOBILE CONTROLS ---
         ['up-btn', 'down-btn', 'left-btn', 'right-btn'].forEach(id => {
             const btn = document.getElementById(id);
             const dir = { 'up-btn': {x:0, y:-1}, 'down-btn': {x:0, y:1}, 'left-btn': {x:-1, y:0}, 'right-btn': {x:1, y:0} }[id];
             
             const handlePress = (e) => {
-                if(e.cancelable) e.preventDefault();
+                e.preventDefault();
                 setDirection(dir);
                 btn.classList.add('dpad-btn--active');
             };
@@ -613,6 +638,11 @@
 
             btn.addEventListener('touchstart', handlePress, { passive: false });
             btn.addEventListener('touchend', handleRelease);
+            btn.addEventListener('touchcancel', handleRelease);
+            // Mouse fallbacks for testing on PC
+            btn.addEventListener('mousedown', handlePress);
+            btn.addEventListener('mouseup', handleRelease);
+            btn.addEventListener('mouseleave', handleRelease);
         });
 
         let touchStartX = 0, touchStartY = 0;
@@ -656,7 +686,7 @@
             function animateClick(time) {
                 const elapsed = time - clickAnim.start;
                 const progress = Math.min(elapsed / clickAnim.duration, 1);
-                clickAnim.scale = 1 - Math.sin(progress * Math.PI) * 0.2; // Bounce effect
+                clickAnim.scale = 1 - Math.sin(progress * Math.PI) * 0.1;
                 if (progress < 1) {
                     requestAnimationFrame(animateClick);
                 } else {
@@ -674,32 +704,50 @@
             const x = (e.clientX - rect.left) * scaleX;
             const y = (e.clientY - rect.top) * scaleY;
 
-            // HITBOX DETECTION
-            const hit = (r) => x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h;
-
-            if (gameState === 'MENU') {
-                if (hit(playBtnRect)) triggerClickAnimation('play', init);
-                else if (hit(backBtnRect)) triggerClickAnimation('back', () => window.location.href = "index.html");
+            // MENU: Play Button
+            if (gameState === 'MENU' && x > playBtnRect.x && x < playBtnRect.x + playBtnRect.w && y > playBtnRect.y && y < playBtnRect.y + playBtnRect.h) {
+                triggerClickAnimation('play', init);
             } 
-            else if (gameState === 'GAMEOVER') {
-                if (hit(replayBtnRect)) triggerClickAnimation('replay', init);
-                else if (hit(homeBtnRect)) triggerClickAnimation('home', () => window.location.href = "index.html");
+            // GAMEOVER: Replay Button
+            else if (gameState === 'GAMEOVER' && x > replayBtnRect.x && x < replayBtnRect.x + replayBtnRect.w && y > replayBtnRect.y && y < replayBtnRect.y + replayBtnRect.h) {
+                triggerClickAnimation('replay', init);
+            } 
+            // MENU: Back Button
+            else if (gameState === 'MENU' && x > backBtnRect.x && x < backBtnRect.x + backBtnRect.w && y > backBtnRect.y && y < backBtnRect.y + backBtnRect.h) {
+                triggerClickAnimation('back', () => window.location.href = "index.html");
+            } 
+            // GAMEOVER: Home Icon
+            else if (gameState === 'GAMEOVER' && x > homeBtnRect.x && x < homeBtnRect.x + homeBtnRect.w && y > homeBtnRect.y && y < homeBtnRect.y + homeBtnRect.h) {
+                triggerClickAnimation('home', () => window.location.href = "index.html");
             }
         });
 
         function resizeGame() {
             const viewportW = window.innerWidth, viewportH = window.innerHeight;
+            
+            // Adjust canvas to fit available space, leaving room for controls on mobile
+            let availableH = viewportH;
+            if (window.matchMedia("(pointer: coarse)").matches) {
+                // Reserve space for d-pad so it doesn't overlap game too much
+                const controlHeight = controlsContainer.offsetHeight || 150; 
+                availableH = viewportH - (controlHeight * 0.7); // slight overlap ok
+            }
+
             const gameAspect = logicalWidth / logicalHeight;
             let newW, newH;
-            
-            if (viewportW / viewportH > gameAspect) { 
-                newH = viewportH; 
+
+            if (viewportW / availableH > gameAspect) { 
+                newH = availableH; 
                 newW = newH * gameAspect; 
             } else { 
                 newW = viewportW; 
                 newH = newW / gameAspect; 
             }
             
+            // Limit max size
+            newW = Math.min(newW, viewportW - 20);
+            newH = Math.min(newH, viewportH - 20);
+
             gameContainer.style.width = `${newW}px`;
             gameContainer.style.height = `${newH}px`;
         }
@@ -707,7 +755,8 @@
         gameState = 'LOADING';
         requestAnimationFrame(drawLoop); 
         window.addEventListener('resize', resizeGame);
-        resizeGame();
+        // Initial Resize after a brief delay to ensure DOM is ready
+        setTimeout(resizeGame, 100);
     });
 </script>
 </body>
