@@ -27,7 +27,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            touch-action: none; /* Prevents whole page scrolling */
+            touch-action: none;
             -webkit-user-select: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
@@ -37,9 +37,9 @@
         #game-container {
             position: relative;
             overflow: hidden;
-            background: var(--bg-color); /* Match body for seamless look */
+            background: var(--bg-color);
             
-            /* DESKTOP DEFAULT: Boxed with shadow */
+            /* DESKTOP DEFAULT */
             flex-grow: 0;
             height: 95vh;
             aspect-ratio: 1024/1144;
@@ -51,13 +51,14 @@
             width: 100%;
             height: 100%;
             display: block;
-            object-fit: contain; /* Ensures game doesn't stretch weirdly */
+            object-fit: contain;
         }
         
         /* --- CONTROLS AREA --- */
         #mobile-controls-container {
             width: 100%;
-            display: none; /* Hidden on Desktop */
+            /* HIDDEN BY DEFAULT (Wait for loader) */
+            display: none; 
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -106,32 +107,33 @@
         /* --- MOBILE & TABLET LAYOUT OVERRIDES --- */
         @media (hover: none) and (pointer: coarse) {
             
-            /* PORTRAIT: Top-to-Bottom Stack (No Gaps) */
             @media (orientation: portrait) {
                 #game-container {
-                    /* Remove desktop styling */
                     box-shadow: none;
                     border-radius: 0;
-                    aspect-ratio: auto; /* Allow flexible stretching */
-                    
-                    /* Flex Magic: Take all space NOT used by controls */
+                    aspect-ratio: auto;
                     flex-grow: 1;
                     width: 100%; 
                     height: auto;
                 }
 
-                /* Show controls at bottom */
+                /* Initially HIDDEN on mobile portrait too */
                 #mobile-controls-container {
-                    display: flex;
-                    flex-shrink: 0; /* Prevent controls from squishing */
+                    display: none; 
+                    flex-shrink: 0;
                     height: auto;
                     padding-top: 10px;
-                    padding-bottom: 30px; /* Space for thumbs */
-                    border-top: 1px solid rgba(255,255,255,0.05); /* Subtle separator */
+                    padding-bottom: 30px;
+                    border-top: 1px solid rgba(255,255,255,0.05);
+                }
+
+                /* --- THE FIX: ONLY SHOW WHEN GAME IS LOADED --- */
+                body.game-loaded #mobile-controls-container {
+                    display: flex; 
+                    animation: fadeUp 0.5s ease-out;
                 }
             }
 
-            /* LANDSCAPE: Full Screen Game (Controls Hidden) */
             @media (orientation: landscape) {
                 #game-container {
                     box-shadow: none;
@@ -144,6 +146,11 @@
                     display: none !important;
                 }
             }
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
@@ -179,7 +186,6 @@
         const initialSpeed = 8;
         let currentSpeed = 8;
         
-        // High DPI Setup
         const dpr = window.devicePixelRatio || 1;
         canvas.width = logicalWidth * dpr;
         canvas.height = logicalHeight * dpr;
@@ -224,7 +230,6 @@
         let assetsLoaded = 0;
         const totalAssets = Object.keys(assetUrls.images).length + Object.keys(assetUrls.sounds).length;
 
-        // Sound Pooling
         const moveSoundPool = [];
         const POOL_SIZE = 5;
 
@@ -267,7 +272,6 @@
         let loading = { current: 0, target: 0, fadeAlpha: 1, isDone: false };
         let cachedBackground = null;
         
-        // Logical Button Rects
         const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
         const replayBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 + 120, w: 300, h: 300 };
         const backBtnRect = { x: 30, y: 20, w: 450, h: 100 };
@@ -331,6 +335,7 @@
                     createCachedBackground();
                     setTimeout(() => { 
                         gameState = 'MENU'; 
+                        // Adds the class that makes controls visible
                         document.body.classList.add('game-loaded'); 
                         window.dispatchEvent(new Event('resize'));
                     }, 500);
@@ -379,7 +384,6 @@
             }
         }
 
-        // --- SEAMLESS LOADER (Matches Body BG) ---
         function drawLoadingScreen() {
             loading.target = assetsLoaded / totalAssets;
             loading.current += (loading.target - loading.current) * 0.1;
@@ -389,7 +393,6 @@
                 ctx.globalAlpha = Math.max(0, loading.fadeAlpha);
             }
             
-            // Use Pure Black to match body background
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, logicalWidth, logicalHeight);
             
@@ -713,7 +716,6 @@
                 } else {
                     setDirection({ x: 0, y: dy > 0 ? 1 : -1 });
                 }
-                // Reset to prevent multiple swipes from one touch
                 touchStartX = 0; 
                 touchStartY = 0;
             }
@@ -740,7 +742,6 @@
 
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
-            // Map physical click to logical game coordinates
             const scaleX = logicalWidth / rect.width;
             const scaleY = logicalHeight / rect.height;
             const x = (e.clientX - rect.left) * scaleX;
