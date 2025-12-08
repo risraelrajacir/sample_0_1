@@ -51,7 +51,7 @@
             width: 100%;
             height: 100%;
             display: block;
-            /* REMOVED object-fit to ensure clicks align perfectly in landscape */
+            /* Fixed: Removed object-fit to ensure accurate click coordinates in landscape */
         }
         
         /* --- CONTROLS AREA --- */
@@ -93,20 +93,21 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            transition: transform 0.1s, background 0.1s;
+            transition: transform 0.05s, background 0.05s;
         }
-        /* Class added via JS for visible click feedback */
+        /* Visual Click Feedback Class */
         .dpad-btn--active {
-            transform: scale(0.85);
+            transform: scale(0.9);
             background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.5);
+            border-color: rgba(255,255,255,0.8);
         }
+
         #up-btn { grid-area: up; }
         #down-btn { grid-area: down; }
         #left-btn { grid-area: left; }
         #right-btn { grid-area: right; }
 
-        /* --- MOBILE LAYOUT OVERRIDES --- */
+        /* --- MOBILE & TABLET LAYOUT OVERRIDES --- */
         @media (hover: none) and (pointer: coarse) {
             
             @media (orientation: portrait) {
@@ -229,6 +230,7 @@
         const assets = { images: {}, sounds: {} };
         let assetsLoaded = 0;
         const totalAssets = Object.keys(assetUrls.images).length + Object.keys(assetUrls.sounds).length;
+
         const moveSoundPool = [];
         const POOL_SIZE = 5;
 
@@ -342,29 +344,36 @@
             
             if (gameState !== 'LOADING') {
                 drawBackground();
-                
-                // --- GAME ELEMENTS (Snake/Apple) ---
-                // Draw them during PLAYING and ANIMATING, but fade them out during ANIMATING
-                if (gameState === 'PLAYING' || gameState === 'GAMEOVER_ANIMATING' || gameState === 'COUNTDOWN') {
+                // Draw Game Elements (Snake/Apple)
+                if (gameState === 'PLAYING' || gameState === 'COUNTDOWN') {
                     ctx.save();
                     ctx.imageSmoothingEnabled = false; 
-                    
-                    // Smooth Fade Out Logic
-                    if (gameState === 'GAMEOVER_ANIMATING') {
-                        ctx.globalAlpha = gameOverAnim.fadeAlpha;
-                    }
-                    
                     drawApple(currentTime);
                     drawSnake();
                     ctx.restore();
-                    
-                    // UI Bar always visible
-                    drawUIBar();
+                } 
+                // Draw Game Elements during Game Over Animation (With smooth fade out)
+                else if (gameState === 'GAMEOVER_ANIMATING') {
+                    ctx.save();
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.globalAlpha = gameOverAnim.fadeAlpha; // Apply fade
+                    drawApple(currentTime);
+                    drawSnake();
+                    ctx.restore();
+                    // Draw Animation Overlay
+                    drawGameOverAnimation(currentTime);
+                }
+                else if (gameState === 'GAMEOVER') {
+                    // Static Game Over Screen (No snake, just UI)
+                    drawGameOverScreen(currentTime, true);
                 }
                 
+                // UI Always on top
+                if (gameState === 'PLAYING' || gameState === 'COUNTDOWN' || gameState === 'GAMEOVER_ANIMATING') {
+                     drawUIBar();
+                }
+
                 if (gameState === 'MENU') drawHomeScreen(currentTime);
-                else if (gameState === 'GAMEOVER_ANIMATING') drawGameOverAnimation(currentTime);
-                else if (gameState === 'GAMEOVER') drawGameOverScreen(currentTime, true);
                 else if (gameState === 'COUNTDOWN') drawCountdown();
             }
             ctx.restore();
@@ -527,7 +536,8 @@
         }
         
         function drawGameOverContent(titleY, panelY, currentTime) {
-            drawUIBar();
+            // Draw UI bar only if Final (Animation handles its own alpha)
+            if(gameState === 'GAMEOVER') drawUIBar();
             
             let homeScale = (clickAnim.active && clickAnim.name === 'home') ? clickAnim.scale : 1;
             const homeCenterX = logicalWidth - 80;
@@ -581,16 +591,15 @@
             const progress = Math.min(elapsed / duration, 1);
             const easedProgress = easeOutCubic(progress);
 
-            // Animate positions
+            // Calculate Smooth Fade Out for Snake/Apple (1.0 -> 0.0)
+            gameOverAnim.fadeAlpha = 1 - easedProgress;
+
             const titleStartY = -200, titleEndY = logicalHeight / 2 - 280;
             gameOverAnim.titleY = titleStartY + (titleEndY - titleStartY) * easedProgress;
 
             const panelStartY = -200, panelEndY = logicalHeight / 2 - 120;
             gameOverAnim.panelY = panelStartY + (panelEndY - panelStartY) * easedProgress;
             
-            // Animate Fade Out of Snake/Apple (1.0 -> 0.0)
-            gameOverAnim.fadeAlpha = 1 - progress;
-
             drawGameOverScreen(currentTime, false);
 
             if (progress >= 1) {
@@ -641,7 +650,7 @@
                 countdown.text = text;
                 function animate(time) {
                     const elapsed = time - start;
-                    const duration = 1000; // SLOWER COUNTDOWN (1 second per tick)
+                    const duration = 1000; // FIX: Slowed to 1 second to match sound
                     const progress = Math.min(elapsed / duration, 1);
                     countdown.scale = 1 + progress * 0.5;
                     countdown.alpha = 1 - progress;
@@ -670,7 +679,7 @@
             if (gameState === 'GAMEOVER' || gameState === 'GAMEOVER_ANIMATING') return;
             gameState = 'GAMEOVER_ANIMATING';
             gameOverAnim.start = 0;
-            gameOverAnim.fadeAlpha = 1; // Reset fade
+            gameOverAnim.fadeAlpha = 1; // Reset alpha
             clearInterval(gameLoopInterval);
             assets.sounds.background.pause();
             assets.sounds.gameOver.play();
@@ -698,29 +707,24 @@
             else if (key === 'arrowright' || key === 'd') setDirection({ x: 1, y: 0 });
         });
         
-        // --- IMPROVED D-PAD INTERACTION ---
         ['up-btn', 'down-btn', 'left-btn', 'right-btn'].forEach(id => {
             const btn = document.getElementById(id);
             const dir = { 'up-btn': {x:0, y:-1}, 'down-btn': {x:0, y:1}, 'left-btn': {x:-1, y:0}, 'right-btn': {x:1, y:0} }[id];
             
+            // FIX: Added click animation logic
             const handlePress = (e) => {
-                e.preventDefault(); // Prevent scroll/zoom
+                e.preventDefault();
                 setDirection(dir);
                 btn.classList.add('dpad-btn--active');
             };
             const handleRelease = (e) => {
                 e.preventDefault();
-                // Add slight delay before removing class to ensure animation is visible
-                setTimeout(() => {
-                    btn.classList.remove('dpad-btn--active');
-                }, 100);
+                btn.classList.remove('dpad-btn--active');
             };
 
             btn.addEventListener('touchstart', handlePress, { passive: false });
-            btn.addEventListener('touchend', handleRelease, { passive: false });
-            // Fallback for mouse on PC testing
-            btn.addEventListener('mousedown', handlePress);
-            btn.addEventListener('mouseup', handleRelease);
+            btn.addEventListener('touchend', handleRelease);
+            btn.addEventListener('touchcancel', handleRelease);
         });
 
         let touchStartX = 0, touchStartY = 0;
@@ -771,7 +775,6 @@
 
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
-            // Use ratio-based click detection which works regardless of letterboxing/scaling
             const scaleX = logicalWidth / rect.width;
             const scaleY = logicalHeight / rect.height;
             const x = (e.clientX - rect.left) * scaleX;
