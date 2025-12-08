@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dino Run Extreme</title>
+    <title>Dino Run Final</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
 
@@ -16,8 +16,8 @@
             font-family: 'Fredoka One', cursive;
             overflow: hidden;
             touch-action: none;
-            user-select: none;
             -webkit-user-select: none;
+            user-select: none;
         }
 
         #game-container {
@@ -34,12 +34,12 @@
             max-width: 100%;
             max-height: 100%;
             aspect-ratio: 16/9;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
             background-color: #4AC;
-            border-radius: 8px;
+            border-radius: 6px;
         }
 
-        /* DARK LOADER */
+        /* Dark Mode Loader */
         #loader {
             position: absolute;
             top: 0; left: 0;
@@ -62,7 +62,7 @@
             height: 15px;
             background: #333;
             border-radius: 10px;
-            border: 1px solid #555;
+            border: 1px solid #444;
             overflow: hidden;
         }
         #progress-fill {
@@ -85,7 +85,7 @@
 
         .control-btn {
             position: absolute;
-            bottom: 15px;
+            bottom: 10px;
             width: 90px;
             height: 90px;
             background: rgba(255, 255, 255, 0.2);
@@ -96,18 +96,19 @@
             align-items: center;
             font-size: 40px;
             color: white;
-            pointer-events: auto;
-            backdrop-filter: blur(5px);
+            user-select: none;
+            backdrop-filter: blur(4px);
             -webkit-tap-highlight-color: transparent;
+            transition: transform 0.1s, background 0.1s;
         }
 
-        #btn-duck { left: 30px; }
-        #btn-jump { right: 30px; }
-
-        .control-btn:active {
+        .control-btn:active, .control-btn.active {
             background: rgba(255, 255, 255, 0.5);
             transform: scale(0.9);
         }
+
+        #btn-duck { left: 20px; }
+        #btn-jump { right: 20px; }
     </style>
 </head>
 <body>
@@ -128,17 +129,12 @@
 
 <script>
 /**
- * DINO RUN - "ADDICTIVE CHALLENGE" EDITION
+ * DINO RUN - FINAL POLISH
  * 
- * 1. Progression:
- *    - Speed increases linearly.
- *    - Cluster Size increases based on score thresholds (1 -> 2 -> 3 -> 4 -> 5).
- * 2. Spawning: 
- *    - Logic calculates required jump distance + buffer to ensure "Fairness".
- *    - Birds never mix inside a Cactus cluster.
- * 3. Motivation: 
- *    - Best Score resets every time (Session Best).
- *    - Target Score displayed is Current + 50 (Carrot on stick).
+ * 1. Progression: Score-based cluster sizes (1 -> 5).
+ * 2. Cacti Logic: "One Area" packing. 4 cacti = 1 wide obstacle, not 4 separate ones.
+ * 3. Controls: Swipe Up/Down, Button Animation, Keyboard.
+ * 4. Physics: Fixed ground gaps, Bird separation.
  */
 
 const MAIN_HOME_URL = "index.html"; 
@@ -166,9 +162,9 @@ const ASSETS_SRC = {
 };
 
 const CONFIG = {
-    startSpeed: 8.5,     
-    maxSpeed: 24.0,      
-    gravity: 0.75,
+    startSpeed: 9.0,     
+    maxSpeed: 25.0,      
+    gravity: 0.7,
     jumpForce: -14.5,
     groundH: 80,
     dinoSize: 85,
@@ -184,8 +180,7 @@ let assets = {};
 let sounds = {};
 let gameState = "INIT"; 
 let score = 0;
-// Best Score resets every time (Session Motivation)
-let sessionBest = 0; 
+let highScore = 0; // Session Best resets on reload
 let speed = CONFIG.startSpeed;
 let frames = 0;
 
@@ -200,32 +195,14 @@ let activeBtn = null;
 let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 let ui = { flashOp: 0, textY: -100, boardY: 600, targetBoardY: 150, pulse: 1 };
 
-// SETUP MOBILE CONTROLS
-if(isMobile) {
-    document.getElementById('mobile-controls').style.display = 'block';
-    const btnJump = document.getElementById('btn-jump');
-    const btnDuck = document.getElementById('btn-duck');
-
-    btnJump.addEventListener('touchstart', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        if (gameState === "PLAY") input.up = true;
-        else if (gameState === "GAMEOVER" || gameState === "HOME") handleInteraction(e);
-    }, {passive: false});
-
-    btnJump.addEventListener('touchend', (e) => { e.preventDefault(); input.up = false; });
-
-    btnDuck.addEventListener('touchstart', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        if (gameState === "PLAY") input.down = true;
-    }, {passive: false});
-
-    btnDuck.addEventListener('touchend', (e) => { e.preventDefault(); input.down = false; });
-}
+// --- UI SETUP ---
+if(isMobile) document.getElementById('mobile-controls').style.display = 'block';
 
 // --- ASSET LOADER ---
 async function init() {
     let toLoad = [];
     const add = (k, s) => toLoad.push({k, s});
+    
     add('bg', ASSETS_SRC.bg); add('ground', ASSETS_SRC.ground);
     add('cactus', ASSETS_SRC.cactus); add('btnPlay', ASSETS_SRC.btnPlay);
     add('btnReplay', ASSETS_SRC.btnReplay);
@@ -311,16 +288,10 @@ function resetGame() {
     duckTimer = 0;
     inputLockDuck = false;
     activeBtn = null;
-    
-    // Reset session best on restart if desired, or keep per session.
-    // User asked "best should reset every time" (meaning per run? or per reload?)
-    // Usually "Best" means best of session. "Score" resets to 0. 
-    // I will keep sessionBest tracking current session max.
 }
 
 function update() {
-    // Pulse: Front/Back Sine Wave
-    ui.pulse = 1 + Math.sin(frames * 0.15) * 0.08; 
+    ui.pulse = 1 + Math.sin(frames * 0.1) * 0.05;
 
     if (gameState === "HOME") {
         frames++;
@@ -330,7 +301,7 @@ function update() {
         frames++;
         score++;
         
-        // Speed Progression
+        // Speed scaling
         if (speed < CONFIG.maxSpeed) {
             speed += 0.0025; 
         }
@@ -385,7 +356,8 @@ function update() {
     else if (gameState === "DYING") {
         frames++;
         sounds.bgm.pause();
-        const floor = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10;
+        const groundTop = canvas.height - CONFIG.groundH;
+        const floor = groundTop - CONFIG.dinoSize + 10;
         
         if (dino.y < floor) dino.y += CONFIG.gravity * 2;
         else dino.y = floor;
@@ -394,12 +366,11 @@ function update() {
             if (frames % 4 === 0) dino.frame++;
         } else {
             gameState = "GAMEOVER";
-            // Check Session Best
-            if(score > sessionBest) sessionBest = score;
+            if (score > highScore) highScore = score;
         }
     }
     else if (gameState === "GAMEOVER") {
-        frames++; // For pulse
+        frames++;
         const floor = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10;
         if (dino.y < floor) dino.y += CONFIG.gravity * 2;
 
@@ -410,56 +381,47 @@ function update() {
 }
 
 function manageObstacles() {
-    // Distance formula for safety: Speed * JumpFrames + Buffer
-    let safeGap = (45 * speed) + 150;
+    let safeGap = (40 * speed) + 120;
     
+    // Spawn if space available
     if (obstacles.length === 0 || canvas.width - obstacles[obstacles.length-1].x > safeGap) {
-        if(Math.random() > 0.1) {
+        if(Math.random() > 0.15) {
             
-            let type = Math.random() > 0.6 ? "BIRD" : "CACTUS";
-            
-            // --- DIFFICULTY TIER LOGIC ---
+            // --- SMART DIFFICULTY ---
             let maxCluster = 1;
             if (score > 500) maxCluster = 2;
-            if (score > 1000) maxCluster = 3;
-            if (score > 2000) maxCluster = 5;
-            if (score > 4000) maxCluster = 8; // Extreme wall
-            if (score > 6000) maxCluster = 10; // Impossible wall (needs perfect jump)
+            if (score > 1500) maxCluster = 4;
+            if (score > 3000) maxCluster = 5; // Go Go Mode
 
-            let count = 1;
+            let type = Math.random() > 0.7 ? "BIRD" : "CACTUS";
+            let clusterSize = 1;
+
             if (type === "CACTUS") {
-                // Skew random towards higher difficulty as maxCluster increases
-                count = Math.floor(Math.random() * maxCluster) + 1;
-                // Force higher clusters occasionally
-                if (score > 3000 && Math.random() > 0.7) count = maxCluster; 
+                // Randomly choose cluster size within allowed max
+                let r = Math.random();
+                if (score < 500) clusterSize = 1;
+                else if (score < 1500) clusterSize = r > 0.5 ? 2 : 1;
+                else if (score < 3000) clusterSize = r > 0.5 ? (r > 0.8 ? 4 : 3) : 2;
+                else clusterSize = r > 0.5 ? 5 : 3;
             }
 
             const groundTop = canvas.height - CONFIG.groundH;
-            
-            let currentX = canvas.width;
 
-            for(let i=0; i<count; i++) {
-                let obs = { type, x: currentX, w:0, h:0, frame:0 };
+            // SPAWN "TIGHT" CLUSTER
+            // All cacti in a cluster spawn close together to look like ONE BIG OBSTACLE
+            for(let i=0; i<clusterSize; i++) {
+                let obs = { type, x: canvas.width + (i * 45), w:0, h:0, frame:0 };
                 
                 if (type === "CACTUS") {
                     obs.w = 50; obs.h = 60;
-                    obs.y = groundTop - obs.h; // Top of ground
+                    obs.y = groundTop - obs.h; // Exact Top
                 } else {
-                    // Bird Logic
                     obs.w = 50; obs.h = 40;
                     let isHigh = Math.random() > 0.5;
                     if (isHigh) obs.y = groundTop - 85; 
                     else obs.y = groundTop - 50; 
                 }
                 obstacles.push(obs);
-
-                // **CLUSTER SPACING**
-                // Pack them tight (40px) to form a "Wall".
-                // But every 3rd cactus, add a tiny gap or break? 
-                // Request said "in one place". So we pack them tight.
-                // 10 cacti x 40px = 400px wide. At speed 15, that's 26 frames to clear.
-                // Jump duration is 45 frames. It IS jumpable.
-                currentX += 45; 
             }
         }
     }
@@ -612,15 +574,11 @@ function drawUI() {
         ctx.fillStyle = "#333";
         ctx.font = "35px 'Fredoka One'";
         
-        // --- MOTIVATIONAL SCORE LOGIC ---
-        // Best = Current + 50 (Unless current IS best)
-        let displayScore = Math.floor(score);
-        let motivationalBest = (score > sessionBest) ? score : (sessionBest > 0 ? sessionBest : 50) + 50; 
-        // Logic tweak: If you beat session best, motivational target bumps up again
-        if (score >= sessionBest && score > 0) motivationalBest = score + 50;
+        // Motivation Score Logic: Best = Score + 50 (if score > 0)
+        let displayBest = (score > 0) ? (Math.floor(score) + 50) : 50;
 
-        ctx.fillText(displayScore, pX+290, pY+80);
-        ctx.fillText(Math.floor(motivationalBest), pX+290, pY+140);
+        ctx.fillText(Math.floor(score), pX+290, pY+80);
+        ctx.fillText(displayBest, pX+290, pY+140);
         
         ctx.beginPath();
         ctx.arc(pX+70, pY+85, 40, 0, Math.PI*2);
@@ -633,7 +591,7 @@ function drawUI() {
         ctx.restore();
 
         if(assets.btnReplay) {
-            // ANIMATED REPLAY (PULSE)
+            // Replay Pulse Logic
             const scale = (activeBtn === 'replay') ? 0.9 : ui.pulse;
             const w = 150 * scale;
             const h = 150 * scale;
@@ -653,30 +611,14 @@ function drawUI() {
     }
 }
 
+// --- CONTROLS ---
 function loop() {
     update();
     draw();
     requestAnimationFrame(loop);
 }
 
-// Global Interaction Handler
-function handleInteraction(e) {
-    let clientX, clientY;
-    if(e.touches) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-    } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
-    }
-
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    
-    const x = (clientX - rect.left) * scaleX;
-    const y = (clientY - rect.top) * scaleY;
-
+function handlePress(x, y) {
     if (gameState === "HOME") {
         if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > 260 - 75 && y < 260 + 75) {
             activeBtn = 'play';
@@ -688,12 +630,10 @@ function handleInteraction(e) {
         }
     }
     else if (gameState === "GAMEOVER") {
-        // Replay
         if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > (ui.boardY + 230) - 75 && y < (ui.boardY + 230) + 75) {
             activeBtn = 'replay';
             playClickSound();
         }
-        // Home
         if (x >= canvas.width - 70 && x <= canvas.width - 20 && y >= 20 && y <= 70) {
             activeBtn = 'home';
             playClickSound();
@@ -709,7 +649,16 @@ function handleRelease() {
     activeBtn = null;
 }
 
-// Event Listeners
+const getXY = (e) => {
+    let cx = e.touches ? e.touches[0].clientX : e.clientX;
+    let cy = e.touches ? e.touches[0].clientY : e.clientY;
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (cx - rect.left) * (canvas.width / rect.width),
+        y: (cy - rect.top) * (canvas.height / rect.height)
+    };
+};
+
 window.addEventListener('keydown', e => {
     if(e.code === 'ArrowUp' || e.code === 'Space') input.up = true;
     if(e.code === 'ArrowDown') input.down = true;
@@ -719,31 +668,58 @@ window.addEventListener('keyup', e => {
     if(e.code === 'ArrowUp') input.up = false;
 });
 
-canvas.addEventListener('mousedown', e => {
-    if (gameState === "PLAY") input.up = true;
-    else handleInteraction(e);
-});
-
-canvas.addEventListener('mouseup', e => {
-    if (gameState === "PLAY") input.up = false;
-    else handleRelease();
-});
-
+// Mobile Swipe + Tap Logic
+let touchStartY = 0;
 canvas.addEventListener('touchstart', e => {
     if(e.target.id === 'gameCanvas') e.preventDefault();
+    const p = getXY(e);
+    touchStartY = e.touches[0].clientY;
+    
     if (gameState === "PLAY") {
-        // Fallback if mobile buttons not used
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.touches[0].clientX - rect.left) * (canvas.width / rect.width);
-        if (x < canvas.width/2) input.down = true; else input.up = true;
+        // Fallback if buttons fail
+        if (p.x < canvas.width/2) input.down = true; else input.up = true;
     } else {
-        handleInteraction(e);
+        handlePress(p.x, p.y);
+    }
+}, {passive:false});
+
+canvas.addEventListener('touchmove', e => {
+    if (gameState === "PLAY") {
+        e.preventDefault();
+        let touchY = e.touches[0].clientY;
+        let diff = touchStartY - touchY;
+        if (diff > 50) { input.up = true; input.down = false; } // Swipe Up
+        if (diff < -50) { input.down = true; input.up = false; } // Swipe Down
     }
 }, {passive:false});
 
 canvas.addEventListener('touchend', e => {
     if(e.target.id === 'gameCanvas') e.preventDefault();
     if (gameState === "PLAY") { input.up=false; input.down=false; }
+    else handleRelease();
+});
+
+// Touch Buttons
+const btnJump = document.getElementById('btn-jump');
+const btnDuck = document.getElementById('btn-duck');
+if(btnJump && btnDuck) {
+    const press = (btn) => { btn.style.background = 'rgba(255,255,255,0.5)'; btn.style.transform = 'scale(0.9)'; };
+    const release = (btn) => { btn.style.background = 'rgba(255,255,255,0.2)'; btn.style.transform = 'scale(1)'; };
+
+    btnJump.addEventListener('touchstart', (e)=>{ e.preventDefault(); input.up=true; press(btnJump); });
+    btnJump.addEventListener('touchend', (e)=>{ e.preventDefault(); input.up=false; release(btnJump); });
+    
+    btnDuck.addEventListener('touchstart', (e)=>{ e.preventDefault(); input.down=true; press(btnDuck); });
+    btnDuck.addEventListener('touchend', (e)=>{ e.preventDefault(); input.down=false; release(btnDuck); });
+}
+
+canvas.addEventListener('mousedown', e => {
+    const p = getXY(e);
+    if (gameState === "PLAY") input.up = true;
+    else handlePress(p.x, p.y);
+});
+canvas.addEventListener('mouseup', e => {
+    if (gameState === "PLAY") input.up = false;
     else handleRelease();
 });
 
