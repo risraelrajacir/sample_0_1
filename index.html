@@ -27,7 +27,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            touch-action: none; 
+            touch-action: none;
             -webkit-user-select: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
@@ -39,9 +39,9 @@
             overflow: hidden;
             background: var(--bg-color);
             
-            /* DESKTOP DEFAULT */
+            /* DESKTOP & LANDSCAPE DEFAULT: Keep aspect ratio */
             flex-grow: 0;
-            height: 95vh;
+            height: 98vh; /* Max height */
             aspect-ratio: 1024/1144;
             box-shadow: 0 0 50px rgba(0,0,0,0.5);
             border-radius: 8px;
@@ -51,13 +51,13 @@
             width: 100%;
             height: 100%;
             display: block;
-            /* Fixed: Removed object-fit to ensure accurate click coordinates in landscape */
+            object-fit: contain;
         }
         
         /* --- CONTROLS AREA --- */
         #mobile-controls-container {
             width: 100%;
-            display: none; 
+            display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -95,21 +95,22 @@
             align-items: center;
             transition: transform 0.05s, background 0.05s;
         }
-        /* Visual Click Feedback Class */
+        
+        /* Click Animation Class */
         .dpad-btn--active {
-            transform: scale(0.9);
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255,255,255,0.8);
+            background: rgba(255, 255, 255, 0.3) !important;
+            transform: scale(0.9) !important;
         }
-
+        
         #up-btn { grid-area: up; }
         #down-btn { grid-area: down; }
         #left-btn { grid-area: left; }
         #right-btn { grid-area: right; }
 
-        /* --- MOBILE & TABLET LAYOUT OVERRIDES --- */
+        /* --- MOBILE LAYOUTS --- */
         @media (hover: none) and (pointer: coarse) {
             
+            /* PORTRAIT: Top-to-Bottom Stack */
             @media (orientation: portrait) {
                 #game-container {
                     box-shadow: none;
@@ -135,13 +136,15 @@
                 }
             }
 
+            /* LANDSCAPE: Like PC (Pillarbox) - No Controls */
             @media (orientation: landscape) {
                 #game-container {
-                    box-shadow: none;
+                    /* Strict fit logic for landscape to prevent "wide" stretching */
+                    height: 100vh;
+                    width: auto;
+                    aspect-ratio: 1024/1144;
                     border-radius: 0;
-                    width: 100%;
-                    height: 100%;
-                    aspect-ratio: auto;
+                    box-shadow: none;
                 }
                 #mobile-controls-container {
                     display: none !important;
@@ -268,9 +271,10 @@
 
         let snake, apple, score, currentDirection, moveQueue, gameState, gameLoopInterval;
         let countdown = { text: '', alpha: 0, scale: 1 };
-        let gameOverAnim = { titleY: -200, panelY: -200, start: 0, fadeAlpha: 1 };
+        let gameOverAnim = { titleY: -200, panelY: -200, start: 0 };
         let clickAnim = { active: false, name: '', scale: 1, start: 0 };
         let loading = { current: 0, target: 0, fadeAlpha: 1, isDone: false };
+        let elementsOpacity = 1; // Smooth fade out
         let cachedBackground = null;
         
         const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
@@ -284,6 +288,7 @@
             currentSpeed = initialSpeed;
             currentDirection = { x: 1, y: 0 };
             moveQueue = []; 
+            elementsOpacity = 1; // Reset opacity
             spawnApple();
             startCountdown();
         }
@@ -345,35 +350,21 @@
             if (gameState !== 'LOADING') {
                 drawBackground();
                 // Draw Game Elements (Snake/Apple)
-                if (gameState === 'PLAYING' || gameState === 'COUNTDOWN') {
+                if (gameState === 'PLAYING' || gameState === 'GAMEOVER_ANIMATING' || gameState === 'GAMEOVER' || gameState === 'COUNTDOWN') {
                     ctx.save();
                     ctx.imageSmoothingEnabled = false; 
+                    // Apply Fade Out if GameOver
+                    ctx.globalAlpha = elementsOpacity;
                     drawApple(currentTime);
                     drawSnake();
                     ctx.restore();
-                } 
-                // Draw Game Elements during Game Over Animation (With smooth fade out)
-                else if (gameState === 'GAMEOVER_ANIMATING') {
-                    ctx.save();
-                    ctx.imageSmoothingEnabled = false;
-                    ctx.globalAlpha = gameOverAnim.fadeAlpha; // Apply fade
-                    drawApple(currentTime);
-                    drawSnake();
-                    ctx.restore();
-                    // Draw Animation Overlay
-                    drawGameOverAnimation(currentTime);
+                    
+                    // UI Bar (Always opaque)
+                    drawUIBar();
                 }
-                else if (gameState === 'GAMEOVER') {
-                    // Static Game Over Screen (No snake, just UI)
-                    drawGameOverScreen(currentTime, true);
-                }
-                
-                // UI Always on top
-                if (gameState === 'PLAYING' || gameState === 'COUNTDOWN' || gameState === 'GAMEOVER_ANIMATING') {
-                     drawUIBar();
-                }
-
                 if (gameState === 'MENU') drawHomeScreen(currentTime);
+                else if (gameState === 'GAMEOVER_ANIMATING') drawGameOverAnimation(currentTime);
+                else if (gameState === 'GAMEOVER') drawGameOverScreen(currentTime, true);
                 else if (gameState === 'COUNTDOWN') drawCountdown();
             }
             ctx.restore();
@@ -536,8 +527,7 @@
         }
         
         function drawGameOverContent(titleY, panelY, currentTime) {
-            // Draw UI bar only if Final (Animation handles its own alpha)
-            if(gameState === 'GAMEOVER') drawUIBar();
+            drawUIBar();
             
             let homeScale = (clickAnim.active && clickAnim.name === 'home') ? clickAnim.scale : 1;
             const homeCenterX = logicalWidth - 80;
@@ -591,15 +581,15 @@
             const progress = Math.min(elapsed / duration, 1);
             const easedProgress = easeOutCubic(progress);
 
-            // Calculate Smooth Fade Out for Snake/Apple (1.0 -> 0.0)
-            gameOverAnim.fadeAlpha = 1 - easedProgress;
-
             const titleStartY = -200, titleEndY = logicalHeight / 2 - 280;
             gameOverAnim.titleY = titleStartY + (titleEndY - titleStartY) * easedProgress;
 
             const panelStartY = -200, panelEndY = logicalHeight / 2 - 120;
             gameOverAnim.panelY = panelStartY + (panelEndY - panelStartY) * easedProgress;
             
+            // FADE OUT LOGIC
+            elementsOpacity = Math.max(0, 1 - progress); 
+
             drawGameOverScreen(currentTime, false);
 
             if (progress >= 1) {
@@ -650,7 +640,8 @@
                 countdown.text = text;
                 function animate(time) {
                     const elapsed = time - start;
-                    const duration = 1000; // FIX: Slowed to 1 second to match sound
+                    // SLOWER ANIMATION: 1000ms (1 second) per number
+                    const duration = 1000; 
                     const progress = Math.min(elapsed / duration, 1);
                     countdown.scale = 1 + progress * 0.5;
                     countdown.alpha = 1 - progress;
@@ -679,7 +670,7 @@
             if (gameState === 'GAMEOVER' || gameState === 'GAMEOVER_ANIMATING') return;
             gameState = 'GAMEOVER_ANIMATING';
             gameOverAnim.start = 0;
-            gameOverAnim.fadeAlpha = 1; // Reset alpha
+            elementsOpacity = 1; // Start fadeout
             clearInterval(gameLoopInterval);
             assets.sounds.background.pause();
             assets.sounds.gameOver.play();
@@ -711,7 +702,7 @@
             const btn = document.getElementById(id);
             const dir = { 'up-btn': {x:0, y:-1}, 'down-btn': {x:0, y:1}, 'left-btn': {x:-1, y:0}, 'right-btn': {x:1, y:0} }[id];
             
-            // FIX: Added click animation logic
+            // D-Pad Animation Logic
             const handlePress = (e) => {
                 e.preventDefault();
                 setDirection(dir);
@@ -723,8 +714,12 @@
             };
 
             btn.addEventListener('touchstart', handlePress, { passive: false });
-            btn.addEventListener('touchend', handleRelease);
-            btn.addEventListener('touchcancel', handleRelease);
+            btn.addEventListener('touchend', handleRelease, { passive: false });
+            btn.addEventListener('touchcancel', handleRelease, { passive: false });
+            // Mouse support for desktop testing
+            btn.addEventListener('mousedown', handlePress);
+            btn.addEventListener('mouseup', handleRelease);
+            btn.addEventListener('mouseleave', handleRelease);
         });
 
         let touchStartX = 0, touchStartY = 0;
@@ -775,6 +770,7 @@
 
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
+            // Map physical click to logical game coordinates
             const scaleX = logicalWidth / rect.width;
             const scaleY = logicalHeight / rect.height;
             const x = (e.clientX - rect.left) * scaleX;
