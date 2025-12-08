@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dino Run Final</title>
+    <title>Dino Run Extreme</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
 
@@ -15,9 +15,7 @@
             background-color: #1a1a1a;
             font-family: 'Fredoka One', cursive;
             overflow: hidden;
-            touch-action: none;
-            -webkit-user-select: none;
-            user-select: none;
+            touch-action: none; /* Critical for swipe gestures */
         }
 
         #game-container {
@@ -34,9 +32,9 @@
             max-width: 100%;
             max-height: 100%;
             aspect-ratio: 16/9;
-            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
             background-color: #4AC;
-            border-radius: 6px;
+            border-radius: 8px;
         }
 
         /* Dark Mode Loader */
@@ -88,8 +86,8 @@
             bottom: 10px;
             width: 90px;
             height: 90px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             display: flex;
             justify-content: center;
@@ -102,8 +100,8 @@
             transition: transform 0.1s, background 0.1s;
         }
 
-        .control-btn:active, .control-btn.active {
-            background: rgba(255, 255, 255, 0.5);
+        .control-btn.active {
+            background: rgba(255, 255, 255, 0.4);
             transform: scale(0.9);
         }
 
@@ -129,12 +127,13 @@
 
 <script>
 /**
- * DINO RUN - FINAL POLISH
+ * DINO RUN - ULTIMATE ADDICTIVE EDITION
  * 
- * 1. Progression: Score-based cluster sizes (1 -> 5).
- * 2. Cacti Logic: "One Area" packing. 4 cacti = 1 wide obstacle, not 4 separate ones.
- * 3. Controls: Swipe Up/Down, Button Animation, Keyboard.
- * 4. Physics: Fixed ground gaps, Bird separation.
+ * Features:
+ * 1. Swipe Controls: Up to Jump, Down to Duck (Mobile).
+ * 2. Cluster Logic: Spawns 1, 2, 3, 4, 5 cacti tightly packed based on score.
+ * 3. Physics Fixes: Ground drawing corrected, Birds don't overlap cacti.
+ * 4. Motivation: Best Score = Current + 50 (Dynamic).
  */
 
 const MAIN_HOME_URL = "index.html"; 
@@ -164,8 +163,8 @@ const ASSETS_SRC = {
 const CONFIG = {
     startSpeed: 9.0,     
     maxSpeed: 25.0,      
-    gravity: 0.7,
-    jumpForce: -14.5,
+    gravity: 0.75,
+    jumpForce: -15,      // Higher jump for bigger clusters
     groundH: 80,
     dinoSize: 85,
     duckDuration: 45
@@ -176,14 +175,15 @@ const ctx = canvas.getContext('2d');
 const loader = document.getElementById('loader');
 const progress = document.getElementById('progress-fill');
 
+// State
 let assets = {};
 let sounds = {};
 let gameState = "INIT"; 
 let score = 0;
-let highScore = 0; // Session Best resets on reload
 let speed = CONFIG.startSpeed;
 let frames = 0;
 
+// Entities
 let dino = { x: 50, y: 0, vy: 0, state: "IDLE", frame: 0 };
 let obstacles = [];
 let groundOffset = 0;
@@ -192,17 +192,19 @@ let duckTimer = 0;
 let inputLockDuck = false;
 let activeBtn = null; 
 
+// Touch/Swipe State
+let touchStartY = 0;
+let touchStartX = 0;
+
 let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 let ui = { flashOp: 0, textY: -100, boardY: 600, targetBoardY: 150, pulse: 1 };
 
-// --- UI SETUP ---
 if(isMobile) document.getElementById('mobile-controls').style.display = 'block';
 
-// --- ASSET LOADER ---
+// --- ASSETS ---
 async function init() {
     let toLoad = [];
     const add = (k, s) => toLoad.push({k, s});
-    
     add('bg', ASSETS_SRC.bg); add('ground', ASSETS_SRC.ground);
     add('cactus', ASSETS_SRC.cactus); add('btnPlay', ASSETS_SRC.btnPlay);
     add('btnReplay', ASSETS_SRC.btnReplay);
@@ -256,6 +258,7 @@ async function init() {
     }, 500);
 }
 
+// --- LOGIC ---
 function playClickSound() {
     sounds.click.currentTime = 0;
     sounds.click.play().catch(()=>{});
@@ -301,16 +304,14 @@ function update() {
         frames++;
         score++;
         
-        // Speed scaling
+        // --- SCORE BASED PROGRESSION ---
         if (speed < CONFIG.maxSpeed) {
-            speed += 0.0025; 
+            speed += 0.0015; // Slow steady increase
         }
         
         groundOffset = (groundOffset + speed) % assets.ground.width;
         
-        const groundTop = canvas.height - CONFIG.groundH;
-        const floor = groundTop - CONFIG.dinoSize + 10;
-
+        const floor = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10;
         dino.y += dino.vy;
 
         if (dino.y >= floor) {
@@ -356,8 +357,7 @@ function update() {
     else if (gameState === "DYING") {
         frames++;
         sounds.bgm.pause();
-        const groundTop = canvas.height - CONFIG.groundH;
-        const floor = groundTop - CONFIG.dinoSize + 10;
+        const floor = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10;
         
         if (dino.y < floor) dino.y += CONFIG.gravity * 2;
         else dino.y = floor;
@@ -366,7 +366,6 @@ function update() {
             if (frames % 4 === 0) dino.frame++;
         } else {
             gameState = "GAMEOVER";
-            if (score > highScore) highScore = score;
         }
     }
     else if (gameState === "GAMEOVER") {
@@ -380,48 +379,48 @@ function update() {
     }
 }
 
+// --- CLUSTER SPAWNING LOGIC ---
 function manageObstacles() {
-    let safeGap = (40 * speed) + 120;
+    let safeGap = (45 * speed) + 120;
     
-    // Spawn if space available
     if (obstacles.length === 0 || canvas.width - obstacles[obstacles.length-1].x > safeGap) {
-        if(Math.random() > 0.15) {
+        if(Math.random() > 0.1) {
             
-            // --- SMART DIFFICULTY ---
-            let maxCluster = 1;
-            if (score > 500) maxCluster = 2;
-            if (score > 1500) maxCluster = 4;
-            if (score > 3000) maxCluster = 5; // Go Go Mode
-
-            let type = Math.random() > 0.7 ? "BIRD" : "CACTUS";
+            let type = Math.random() > 0.65 ? "BIRD" : "CACTUS";
             let clusterSize = 1;
 
             if (type === "CACTUS") {
-                // Randomly choose cluster size within allowed max
-                let r = Math.random();
+                // Progression: 1 -> 2 -> 3 -> 4 -> 5
+                let rand = Math.random();
                 if (score < 500) clusterSize = 1;
-                else if (score < 1500) clusterSize = r > 0.5 ? 2 : 1;
-                else if (score < 3000) clusterSize = r > 0.5 ? (r > 0.8 ? 4 : 3) : 2;
-                else clusterSize = r > 0.5 ? 5 : 3;
+                else if (score < 1000) clusterSize = (rand > 0.6) ? 2 : 1;
+                else if (score < 1500) clusterSize = (rand > 0.5) ? 3 : 2;
+                else if (score < 2000) clusterSize = (rand > 0.4) ? 4 : 3;
+                else clusterSize = (rand > 0.3) ? 5 : 4; // Extreme
             }
 
             const groundTop = canvas.height - CONFIG.groundH;
 
-            // SPAWN "TIGHT" CLUSTER
-            // All cacti in a cluster spawn close together to look like ONE BIG OBSTACLE
-            for(let i=0; i<clusterSize; i++) {
-                let obs = { type, x: canvas.width + (i * 45), w:0, h:0, frame:0 };
-                
-                if (type === "CACTUS") {
-                    obs.w = 50; obs.h = 60;
-                    obs.y = groundTop - obs.h; // Exact Top
-                } else {
-                    obs.w = 50; obs.h = 40;
-                    let isHigh = Math.random() > 0.5;
-                    if (isHigh) obs.y = groundTop - 85; 
-                    else obs.y = groundTop - 50; 
-                }
+            // Birds shouldn't spawn inside a cactus cluster
+            if (type === "BIRD") {
+                let obs = { type, x: canvas.width, w: 50, h: 40, frame: 0 };
+                let isHigh = Math.random() > 0.5;
+                obs.y = isHigh ? groundTop - 85 : groundTop - 50;
                 obstacles.push(obs);
+            } else {
+                // CACTUS CLUSTER
+                // Spawn 'clusterSize' cacti next to each other
+                for(let i=0; i<clusterSize; i++) {
+                    let obs = { 
+                        type: "CACTUS", 
+                        x: canvas.width + (i * 45), // 45px = Tight spacing
+                        w: 50, 
+                        h: 60, 
+                        frame: 0,
+                        y: groundTop - 60 // Top of ground
+                    };
+                    obstacles.push(obs);
+                }
             }
         }
     }
@@ -462,13 +461,16 @@ function checkColl(d, o) {
     return (dx < ox + ow && dx + dw > ox && dy < oy + oh && dy + dh > oy);
 }
 
+// --- DRAW ---
 function draw() {
     ctx.clearRect(0,0, canvas.width, canvas.height);
 
     if(assets.bg) ctx.drawImage(assets.bg, 0, 0, canvas.width, canvas.height);
 
+    // GROUND DRAWING (Gap Fix: Ensure it draws enough tiles)
     if(assets.ground) {
         let x = -groundOffset;
+        // Draw tiles until we cover the width
         while(x < canvas.width) {
             ctx.drawImage(assets.ground, x, canvas.height - CONFIG.groundH, assets.ground.width, CONFIG.groundH);
             x += assets.ground.width;
@@ -501,6 +503,7 @@ function draw() {
 }
 
 function drawUI() {
+    // HOME
     if (gameState === "HOME") {
         ctx.fillStyle = "#fff";
         ctx.strokeStyle = "#222";
@@ -518,6 +521,7 @@ function drawUI() {
             ctx.drawImage(assets.btnPlay, canvas.width/2 - w/2, 260 - h/2, w, h);
         }
 
+        // Back Button
         const scale = (activeBtn === 'back') ? 0.9 : 1.0;
         ctx.fillStyle = "rgba(255,255,255,0.9)";
         ctx.beginPath();
@@ -530,6 +534,7 @@ function drawUI() {
         ctx.fillText("Back to Games", 70, 52);
     }
 
+    // PLAY
     if (gameState === "PLAY" || gameState === "DYING") {
         ctx.fillStyle = "#fff";
         ctx.strokeStyle = "#333";
@@ -540,6 +545,7 @@ function drawUI() {
         ctx.fillText(Math.floor(score), canvas.width/2, 60);
     }
 
+    // GAME OVER
     if (gameState === "GAMEOVER") {
         ctx.save();
         ctx.translate(0, ui.textY);
@@ -574,11 +580,11 @@ function drawUI() {
         ctx.fillStyle = "#333";
         ctx.font = "35px 'Fredoka One'";
         
-        // Motivation Score Logic: Best = Score + 50 (if score > 0)
-        let displayBest = (score > 0) ? (Math.floor(score) + 50) : 50;
+        // Motivation Score: Current + 50
+        let motivationalBest = Math.floor(score) + 50; 
 
         ctx.fillText(Math.floor(score), pX+290, pY+80);
-        ctx.fillText(displayBest, pX+290, pY+140);
+        ctx.fillText(motivationalBest, pX+290, pY+140);
         
         ctx.beginPath();
         ctx.arc(pX+70, pY+85, 40, 0, Math.PI*2);
@@ -591,7 +597,7 @@ function drawUI() {
         ctx.restore();
 
         if(assets.btnReplay) {
-            // Replay Pulse Logic
+            // Replay Pulse
             const scale = (activeBtn === 'replay') ? 0.9 : ui.pulse;
             const w = 150 * scale;
             const h = 150 * scale;
@@ -611,13 +617,13 @@ function drawUI() {
     }
 }
 
-// --- CONTROLS ---
 function loop() {
     update();
     draw();
     requestAnimationFrame(loop);
 }
 
+// --- CONTROLS ---
 function handlePress(x, y) {
     if (gameState === "HOME") {
         if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > 260 - 75 && y < 260 + 75) {
@@ -649,6 +655,42 @@ function handleRelease() {
     activeBtn = null;
 }
 
+// --- BUTTON ANIMATIONS FOR MOBILE ---
+const btnJump = document.getElementById('btn-jump');
+const btnDuck = document.getElementById('btn-duck');
+
+if (isMobile) {
+    btnJump.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        btnJump.classList.add('active');
+        if (gameState === "PLAY") input.up = true;
+        else {
+            // Forward generic clicks if on menu
+            handlePress(0, 0); // Simplified for testing
+        }
+    }, {passive: false});
+
+    btnJump.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        btnJump.classList.remove('active');
+        input.up = false;
+        if(gameState !== "PLAY") handleRelease();
+    });
+
+    btnDuck.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        btnDuck.classList.add('active');
+        input.down = true;
+    }, {passive: false});
+
+    btnDuck.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        btnDuck.classList.remove('active');
+        input.down = false;
+    });
+}
+
+// --- SWIPE LOGIC ---
 const getXY = (e) => {
     let cx = e.touches ? e.touches[0].clientX : e.clientX;
     let cy = e.touches ? e.touches[0].clientY : e.clientY;
@@ -659,6 +701,40 @@ const getXY = (e) => {
     };
 };
 
+window.addEventListener('touchstart', e => {
+    // Only capture swipes on canvas
+    if(e.target.id === 'gameCanvas') {
+        const t = e.touches[0];
+        touchStartY = t.clientY;
+        touchStartX = t.clientX;
+        
+        // Also check UI Clicks
+        const p = getXY(e);
+        handlePress(p.x, p.y);
+    }
+}, {passive:false});
+
+window.addEventListener('touchmove', e => {
+    if(e.target.id === 'gameCanvas' && gameState === "PLAY") {
+        e.preventDefault(); // Prevent scroll
+        const t = e.touches[0];
+        let diffY = t.clientY - touchStartY;
+        
+        // Swipe Detection threshold 50px
+        if (diffY < -50) { input.up = true; input.down = false; } // Up
+        if (diffY > 50) { input.down = true; input.up = false; } // Down
+    }
+}, {passive:false});
+
+window.addEventListener('touchend', e => {
+    if(e.target.id === 'gameCanvas') {
+        input.up = false;
+        input.down = false;
+        handleRelease();
+    }
+});
+
+// Keyboard & Mouse
 window.addEventListener('keydown', e => {
     if(e.code === 'ArrowUp' || e.code === 'Space') input.up = true;
     if(e.code === 'ArrowDown') input.down = true;
@@ -667,59 +743,13 @@ window.addEventListener('keyup', e => {
     if(e.code === 'ArrowDown') input.down = false;
     if(e.code === 'ArrowUp') input.up = false;
 });
-
-// Mobile Swipe + Tap Logic
-let touchStartY = 0;
-canvas.addEventListener('touchstart', e => {
-    if(e.target.id === 'gameCanvas') e.preventDefault();
-    const p = getXY(e);
-    touchStartY = e.touches[0].clientY;
-    
-    if (gameState === "PLAY") {
-        // Fallback if buttons fail
-        if (p.x < canvas.width/2) input.down = true; else input.up = true;
-    } else {
-        handlePress(p.x, p.y);
-    }
-}, {passive:false});
-
-canvas.addEventListener('touchmove', e => {
-    if (gameState === "PLAY") {
-        e.preventDefault();
-        let touchY = e.touches[0].clientY;
-        let diff = touchStartY - touchY;
-        if (diff > 50) { input.up = true; input.down = false; } // Swipe Up
-        if (diff < -50) { input.down = true; input.up = false; } // Swipe Down
-    }
-}, {passive:false});
-
-canvas.addEventListener('touchend', e => {
-    if(e.target.id === 'gameCanvas') e.preventDefault();
-    if (gameState === "PLAY") { input.up=false; input.down=false; }
-    else handleRelease();
-});
-
-// Touch Buttons
-const btnJump = document.getElementById('btn-jump');
-const btnDuck = document.getElementById('btn-duck');
-if(btnJump && btnDuck) {
-    const press = (btn) => { btn.style.background = 'rgba(255,255,255,0.5)'; btn.style.transform = 'scale(0.9)'; };
-    const release = (btn) => { btn.style.background = 'rgba(255,255,255,0.2)'; btn.style.transform = 'scale(1)'; };
-
-    btnJump.addEventListener('touchstart', (e)=>{ e.preventDefault(); input.up=true; press(btnJump); });
-    btnJump.addEventListener('touchend', (e)=>{ e.preventDefault(); input.up=false; release(btnJump); });
-    
-    btnDuck.addEventListener('touchstart', (e)=>{ e.preventDefault(); input.down=true; press(btnDuck); });
-    btnDuck.addEventListener('touchend', (e)=>{ e.preventDefault(); input.down=false; release(btnDuck); });
-}
-
 canvas.addEventListener('mousedown', e => {
     const p = getXY(e);
-    if (gameState === "PLAY") input.up = true;
+    if(gameState === "PLAY") input.up = true;
     else handlePress(p.x, p.y);
 });
 canvas.addEventListener('mouseup', e => {
-    if (gameState === "PLAY") input.up = false;
+    if(gameState === "PLAY") input.up = false;
     else handleRelease();
 });
 
