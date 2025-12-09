@@ -39,9 +39,9 @@
             overflow: hidden;
             background: var(--bg-color);
             
-            /* DESKTOP & LANDSCAPE DEFAULT: Keep aspect ratio */
+            /* DESKTOP DEFAULT */
             flex-grow: 0;
-            height: 98vh; /* Max height */
+            height: 98vh;
             aspect-ratio: 1024/1144;
             box-shadow: 0 0 50px rgba(0,0,0,0.5);
             border-radius: 8px;
@@ -96,7 +96,6 @@
             transition: transform 0.05s, background 0.05s;
         }
         
-        /* Click Animation Class */
         .dpad-btn--active {
             background: rgba(255, 255, 255, 0.3) !important;
             transform: scale(0.9) !important;
@@ -110,7 +109,7 @@
         /* --- MOBILE LAYOUTS --- */
         @media (hover: none) and (pointer: coarse) {
             
-            /* PORTRAIT: Top-to-Bottom Stack */
+            /* PORTRAIT */
             @media (orientation: portrait) {
                 #game-container {
                     box-shadow: none;
@@ -136,7 +135,7 @@
                 }
             }
 
-            /* LANDSCAPE: Like PC (Pillarbox) - No Controls */
+            /* LANDSCAPE: Pillarbox Style (Like PC) */
             @media (orientation: landscape) {
                 #game-container {
                     height: 100vh;
@@ -276,6 +275,7 @@
         let elementsOpacity = 1; 
         let cachedBackground = null;
         
+        // Logical Button Rects
         const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
         const replayBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 + 120, w: 300, h: 300 };
         const backBtnRect = { x: 30, y: 20, w: 450, h: 100 };
@@ -335,30 +335,29 @@
 
             if (gameState === 'LOADING' || loading.fadeAlpha > 0) {
                 drawLoadingScreen();
-                if (assetsLoaded === totalAssets && !loading.isDone) {
+                // Ensure smoothness by waiting for visual bar to fill near 100%
+                if (assetsLoaded === totalAssets && loading.current > 0.99 && !loading.isDone) {
                     loading.isDone = true;
                     createCachedBackground();
                     setTimeout(() => { 
                         gameState = 'MENU'; 
                         document.body.classList.add('game-loaded'); 
                         window.dispatchEvent(new Event('resize'));
-                    }, 500);
+                    }, 200);
                 }
             }
             
             if (gameState !== 'LOADING') {
                 drawBackground();
-                // Draw Game Elements (Snake/Apple)
+                
                 if (gameState === 'PLAYING' || gameState === 'GAMEOVER_ANIMATING' || gameState === 'GAMEOVER' || gameState === 'COUNTDOWN') {
                     ctx.save();
                     ctx.imageSmoothingEnabled = false; 
-                    // FADE OUT EFFECT
-                    ctx.globalAlpha = elementsOpacity;
+                    ctx.globalAlpha = elementsOpacity; // Smooth Fade Out
                     drawApple(currentTime);
                     drawSnake();
                     ctx.restore();
                     
-                    // UI Bar (Always Opaque)
                     drawUIBar();
                 }
                 if (gameState === 'MENU') drawHomeScreen(currentTime);
@@ -395,66 +394,53 @@
 
         function drawLoadingScreen() {
             loading.target = assetsLoaded / totalAssets;
-            
-            // SMOOTH PROGRESS BAR LOGIC
-            let step = (loading.target - loading.current) * 0.1;
-            if (step < 0.001 && loading.target > loading.current) step = 0.005; 
-            loading.current += step;
-
-            if (loading.current > 0.99 && assetsLoaded === totalAssets) {
-                loading.current = 1;
-                loading.isDone = true;
-            }
+            // Smooth Interpolation
+            loading.current += (loading.target - loading.current) * 0.05;
 
             if (loading.isDone && loading.fadeAlpha > 0) {
                 loading.fadeAlpha -= 0.05;
                 ctx.globalAlpha = Math.max(0, loading.fadeAlpha);
             }
             
-            // BG matches body
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, logicalWidth, logicalHeight);
             
-            // 1. TITLE: SNAKE (Like Home Screen)
-            ctx.save();
-            ctx.font = "140px 'Luckiest Guy'";
-            ctx.fillStyle = '#87D37C'; // Snake Green
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 12;
+            // SNAKE Title
+            ctx.font = "140px 'Luckiest Guy'"; // Matches specific scale request
+            ctx.fillStyle = '#87D37C'; // Green
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.shadowColor = "rgba(0,0,0,0.5)";
-            ctx.shadowBlur = 10;
-            ctx.strokeText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 120);
-            ctx.fillText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 120);
-            ctx.restore();
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = '#000';
             
-            // 2. PROGRESS BAR
-            const barW = 600;
-            const barH = 40;
-            const barX = (logicalWidth - barW) / 2;
-            const barY = logicalHeight / 2;
+            const titleY = logicalHeight / 2 - 120;
+            ctx.strokeText('SNAKE', logicalWidth / 2, titleY);
+            ctx.fillText('SNAKE', logicalWidth / 2, titleY);
             
-            // Bar Background
+            // Progress Bar
+            const barX = logicalWidth / 2 - 350, barY = logicalHeight / 2, barW = 700, barH = 50;
+            
+            // Bar BG
             ctx.fillStyle = '#333';
             ctx.beginPath();
-            ctx.roundRect(barX, barY, barW, barH, 20);
+            ctx.roundRect(barX, barY, barW, barH, 25);
             ctx.fill();
-
+            
             // Bar Fill (Orange)
             if (loading.current > 0) {
                 ctx.fillStyle = '#FF9800'; 
                 ctx.beginPath();
-                const fillW = Math.max(20, barW * loading.current); 
-                ctx.roundRect(barX, barY, fillW, barH, 20);
+                // Ensure rounded rect doesn't break on small values
+                const w = Math.max(25, barW * loading.current);
+                ctx.roundRect(barX, barY, w, barH, 25);
                 ctx.fill();
             }
-
-            // 3. TEXT: Loading...
+            
+            // "Loading..." Text
             ctx.font = "40px 'Lilita One'";
-            ctx.fillStyle = '#888888';
-            ctx.textAlign = 'center';
-            ctx.fillText("Loading...", logicalWidth / 2, barY + barH + 50);
+            ctx.fillStyle = '#888';
+            ctx.fillText('Loading...', logicalWidth / 2, barY + 100);
+
+            ctx.globalAlpha = 1;
         }
 
         function drawUIBar() {
@@ -619,7 +605,7 @@
             const panelStartY = -200, panelEndY = logicalHeight / 2 - 120;
             gameOverAnim.panelY = panelStartY + (panelEndY - panelStartY) * easedProgress;
             
-            // FADE OUT LOGIC
+            // FADE OUT LOGIC (Snake/Apple disappear smoothly)
             elementsOpacity = Math.max(0, 1 - progress); 
 
             drawGameOverScreen(currentTime, false);
@@ -672,7 +658,7 @@
                 countdown.text = text;
                 function animate(time) {
                     const elapsed = time - start;
-                    // SLOWER ANIMATION: 1000ms (1 second) per number
+                    // SLOWED DOWN: 1000ms (1 second) per number for proper rhythm
                     const duration = 1000; 
                     const progress = Math.min(elapsed / duration, 1);
                     countdown.scale = 1 + progress * 0.5;
@@ -702,7 +688,7 @@
             if (gameState === 'GAMEOVER' || gameState === 'GAMEOVER_ANIMATING') return;
             gameState = 'GAMEOVER_ANIMATING';
             gameOverAnim.start = 0;
-            elementsOpacity = 1; // Start fadeout
+            elementsOpacity = 1; // Start fade out
             clearInterval(gameLoopInterval);
             assets.sounds.background.pause();
             assets.sounds.gameOver.play();
@@ -734,21 +720,17 @@
             const btn = document.getElementById(id);
             const dir = { 'up-btn': {x:0, y:-1}, 'down-btn': {x:0, y:1}, 'left-btn': {x:-1, y:0}, 'right-btn': {x:1, y:0} }[id];
             
-            // D-Pad Animation Logic
             const handlePress = (e) => {
                 e.preventDefault();
                 setDirection(dir);
                 btn.classList.add('dpad-btn--active');
             };
-            const handleRelease = (e) => {
-                e.preventDefault();
-                btn.classList.remove('dpad-btn--active');
-            };
+            const handleRelease = () => btn.classList.remove('dpad-btn--active');
 
             btn.addEventListener('touchstart', handlePress, { passive: false });
             btn.addEventListener('touchend', handleRelease, { passive: false });
             btn.addEventListener('touchcancel', handleRelease, { passive: false });
-            // Mouse support for desktop testing
+            // Mouse support for desktop
             btn.addEventListener('mousedown', handlePress);
             btn.addEventListener('mouseup', handleRelease);
             btn.addEventListener('mouseleave', handleRelease);
@@ -802,7 +784,7 @@
 
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
-            // Map physical click to logical game coordinates
+            // Scale Calculation
             const scaleX = logicalWidth / rect.width;
             const scaleY = logicalHeight / rect.height;
             const x = (e.clientX - rect.left) * scaleX;
