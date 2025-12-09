@@ -2,615 +2,826 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>RACING GAME</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Snake HD</title>
     <style>
-        /* --- GLOBAL RESET --- */
-        * {
+        @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Lilita+One&display=swap');
+        :root {
+            --font-title: 'Luckiest Guy', Impact, sans-serif;
+            --font-ui: 'Lilita One', 'Arial Black', sans-serif;
+            --bg-color: #000000;
+        }
+        * { box-sizing: border-box; }
+        
+        html, body {
+            background-color: var(--bg-color);
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+            overflow: hidden;
+            height: 100%;
+            width: 100%;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
             -webkit-user-select: none;
             user-select: none;
-            -webkit-user-drag: none;
-            -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
         }
-
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #000000; /* Solid Black Background */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: 'Segoe UI', 'Roboto', 'Helvetica', sans-serif;
-            touch-action: none; 
-        }
-
-        img { pointer-events: none; user-drag: none; }
-
-        #gameWrapper {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #000000;
-        }
         
-        /* --- GAME CONTAINER --- */
-        #gameContainer {
-            /* Width and Height are now controlled by JS for perfect Aspect Ratio */
+        /* --- GAME AREA --- */
+        #game-container {
             position: relative;
             overflow: hidden;
-            background-color: #1a1a1a;
-            box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
-            /* This ensures it stands out against the black background */
-            border: 2px solid #333;
+            background: var(--bg-color);
+            
+            /* DESKTOP & LANDSCAPE DEFAULT: Keep aspect ratio */
+            flex-grow: 0;
+            height: 98vh; /* Max height */
+            aspect-ratio: 1024/1144;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            border-radius: 8px;
         }
-
-        #gameCanvas {
+        
+        canvas {
             width: 100%;
             height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            /* Enhanced visuals for "Thrilling" feel */
-            filter: saturate(120%) brightness(105%) contrast(110%);
-        }
-
-        .ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 10; pointer-events: none;
+            display: block;
+            object-fit: contain;
         }
         
-        /* --- SCREENS --- */
-        .ui-screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            background-color: rgba(0, 0, 0, 0.75);
-            color: white; text-align: center;
-            pointer-events: auto;
-        }
-
-        .ui-screen h1 {
-            font-family: 'Bangers', cursive;
-            font-size: 5rem;
-            letter-spacing: 3px;
-            color: #FFD700;
-            text-shadow: 4px 4px 0 #000, -2px -2px 0 #c56e00;
-            pointer-events: none;
-        }
-        
-        #menuScreen, #gameOverScreen { display: none; }
-        
-        /* --- BUTTONS & ANIMATIONS --- */
-        .ui-button { cursor: pointer; border: none; background: none; padding: 0; display: block; pointer-events: auto; }
-        .anim-attract { animation: attract-pulse 1.3s infinite ease-in-out; transform-origin: center; }
-        @keyframes attract-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
-        
-        .button-clicked { 
-            transform: scale(0.9) !important; 
-            filter: brightness(0.8); 
-            animation: none !important; 
-            transition: transform 0.05s ease-out; 
-        }
-
-        .fade-in-anim { animation: simpleFadeIn 0.5s ease-out 0.8s forwards; }
-        @keyframes simpleFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-        #startButton { width: 140px; }
-        #replayWrapper { margin-top: 25px; opacity: 0; pointer-events: none; }
-        #replayButton { width: 140px; display: block; pointer-events: auto; }
-
-        #gameOverText {
-            font-family: 'Bangers', cursive; font-size: 5rem; letter-spacing: 4px; color: #FFD700;
-            text-shadow: 5px 5px 0 #000, -2px -2px 0 #c56e00;
-            margin-bottom: 25px; opacity: 0;
-        }
-        
-        #scorePanel {
-            background-color: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            box-shadow: 0px 8px 15px rgba(0,0,0,0.3);
-            width: 85%; max-width: 400px;
-            padding: 20px; box-sizing: border-box;
-            display: flex; justify-content: space-around; align-items: center;
-            opacity: 0;
-        }
-
-        .game-over-anim { animation: gameOverBounce 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards; }
-        .score-panel-anim { animation: scorePanelSlideUp 0.5s ease-out 0.4s forwards; }
-        @keyframes gameOverBounce { from { transform: translateY(-100px) scale(0.5); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
-        @keyframes scorePanelSlideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        
-        .score-display { color: #333; text-align: center; font-family: 'Segoe UI', 'Roboto', 'Helvetica', sans-serif; padding: 0 10px; }
-        .score-display h2 { font-size: 1rem; margin: 0 0 10px 0; color: #666; font-weight: 700; }
-        .score-display p { font-size: 2.5rem; margin: 0; color: #e65100; font-weight: 900; }
-        
-        #scoreBox {
-            position: absolute; top: 20px; left: 20px;
-            background-color: rgba(0, 0, 0, 0.6); color: white;
-            padding: 8px 18px; border-radius: 10px;
-            font-size: 1.8rem; font-weight: 700;
-            border: 2px solid rgba(255, 255, 255, 0.4);
-            display: none; pointer-events: none;
-        }
-
-        /* --- CONTROLS --- */
-        #controlContainer {
-            position: absolute; left: 0; right: 0;
-            bottom: 20px; 
+        /* --- CONTROLS AREA --- */
+        #mobile-controls-container {
+            width: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-color);
+            z-index: 200;
             padding-bottom: env(safe-area-inset-bottom);
-            display: none; justify-content: space-between;
-            padding-left: 20px; padding-right: 20px;
-            box-sizing: border-box;
-            z-index: 100; pointer-events: none;
-        }
-        .control-button {
-            pointer-events: auto;
-            width: 85px; height: 85px;
-            background-color: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(4px);
-            color: white; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 3rem; cursor: pointer;
-            border: 2px solid rgba(255,255,255,0.3);
-            transition: transform 0.05s ease-out, background-color 0.1s;
-        }
-        .control-button.active-touch { background-color: rgba(255, 255, 255, 0.4); transform: scale(0.9); }
-        
-        #countdown {
-            position: absolute; top: 50%; left: 50%;
-            font-family: 'Bangers', cursive; color: #FFD700;
-            text-shadow: 5px 5px 15px rgba(0,0,0,0.6);
-            display: none; font-size: 10rem;
-            animation: countdown-zoom-fade 1s ease-in-out; pointer-events: none;
-        }
-        @keyframes countdown-zoom-fade { from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 50% { opacity: 1; } to { transform: translate(-50%, -50%) scale(1.2); opacity: 0; } }
-        
-        /* --- NAVIGATION BUTTONS --- */
-        #backButton, #homeButton {
-            position: absolute; top: 20px;
-            cursor: pointer; z-index: 200;
-            pointer-events: auto;
-            transition: transform 0.1s ease-out;
-        }
-        #backButton {
-            left: 20px; display: flex; align-items: center;
-            color: white; text-decoration: none;
-            font-size: 1rem; font-weight: bold;
-            text-shadow: 1px 1px 3px #000;
-        }
-        #backButton img { width: 24px; height: 24px; margin-right: 8px; pointer-events: none; }
-        #homeButton { right: 20px; }
-        #homeButton img { width: 32px; height: 32px; pointer-events: none; }
-        
-        /* --- NEW PERFECT LOADER --- */
-        #loaderScreen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #1a1a1a; z-index: 500;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: white; pointer-events: none;
         }
         
-        /* CENTERED TITLE IN LOADER */
-        #loaderTitle {
-            font-family: 'Bangers', cursive;
-            font-size: 3rem; 
-            color: #FFD700; /* Gold */
-            letter-spacing: 2px;
-            margin-bottom: 20px;
-            text-shadow: 3px 3px 0 #000;
+        #mobile-instructions {
+            color: rgba(255, 255, 255, 0.5);
+            font-family: var(--font-ui);
+            font-size: 14px;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             text-align: center;
         }
 
-        #progressBarContainer { 
-            width: 70%; 
-            max-width: 300px;
-            height: 15px; 
-            background-color: #333; 
-            border-radius: 10px; 
-            overflow: hidden; 
-            border: 2px solid #555;
+        #dpad-container {
+            display: grid;
+            grid-template-areas: ". up ." "left . right" ". down .";
+            gap: 8px;
         }
         
-        #progressBar { 
-            width: 0%; 
-            height: 100%; 
-            background-color: #FF8C00; 
-            transition: width 0.3s linear; /* Smooth fill, no stutter */
+        .dpad-btn {
+            width: 65px;
+            height: 65px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.05s, background 0.05s;
         }
         
-        #loaderText { font-size: 1rem; color: #aaa; margin-top: 10px; font-weight: bold; }
+        /* Click Animation Class */
+        .dpad-btn--active {
+            background: rgba(255, 255, 255, 0.3) !important;
+            transform: scale(0.9) !important;
+        }
+        
+        #up-btn { grid-area: up; }
+        #down-btn { grid-area: down; }
+        #left-btn { grid-area: left; }
+        #right-btn { grid-area: right; }
 
+        /* --- MOBILE LAYOUTS --- */
+        @media (hover: none) and (pointer: coarse) {
+            
+            /* PORTRAIT: Top-to-Bottom Stack */
+            @media (orientation: portrait) {
+                #game-container {
+                    box-shadow: none;
+                    border-radius: 0;
+                    aspect-ratio: auto;
+                    flex-grow: 1;
+                    width: 100%; 
+                    height: auto;
+                }
+
+                #mobile-controls-container {
+                    display: none; 
+                    flex-shrink: 0;
+                    height: auto;
+                    padding-top: 10px;
+                    padding-bottom: 30px;
+                    border-top: 1px solid rgba(255,255,255,0.05);
+                }
+
+                body.game-loaded #mobile-controls-container {
+                    display: flex; 
+                    animation: fadeUp 0.5s ease-out;
+                }
+            }
+
+            /* LANDSCAPE: Like PC (Pillarbox) - No Controls */
+            @media (orientation: landscape) {
+                #game-container {
+                    height: 100vh;
+                    width: auto;
+                    aspect-ratio: 1024/1144;
+                    border-radius: 0;
+                    box-shadow: none;
+                }
+                #mobile-controls-container {
+                    display: none !important;
+                }
+            }
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
-<body oncontextmenu="return false;" ondragstart="return false;" ondrop="return false;">
-    <div id="gameWrapper">
-        <div id="gameContainer">
-            <canvas id="gameCanvas"></canvas>
-            <div class="ui-layer">
-                <!-- LOADER -->
-                <div id="loaderScreen">
-                    <h1 id="loaderTitle">RACING GAME</h1>
-                    <div id="progressBarContainer">
-                        <div id="progressBar"></div>
-                    </div>
-                    <p id="loaderText">Loading...</p>
-                </div>
+<body>
 
-                <div id="menuScreen" class="ui-screen">
-                    <a href="#" id="backButton" draggable="false">
-                        <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/aw_bk_in_24dp_FFFFFF.png?raw=true" alt="Back" draggable="false">
-                        <span>Back to Games</span>
-                    </a>
-                    <h1>RACING GAME</h1>
-                    <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true" id="startButton" class="ui-button anim-attract" alt="Play Game" draggable="false">
-                </div>
-                <div id="gameOverScreen" class="ui-screen">
-                    <a href="#" id="homeButton" draggable="false">
-                        <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_FFFFFF.png?raw=true" alt="Home" draggable="false">
-                    </a>
-                    <h1 id="gameOverText">GAME OVER</h1>
-                    <div id="scorePanel">
-                        <div class="score-display">
-                            <h2>SCORE</h2>
-                            <p id="finalScore">0</p>
-                        </div>
-                        <div class="score-display">
-                            <h2>BEST</h2>
-                            <p id="bestScore">0</p>
-                        </div>
-                    </div>
-                    <div id="replayWrapper">
-                        <img src="https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/ry_ne_ui_bn.png?raw=true" id="replayButton" class="ui-button anim-attract" alt="Replay Game" draggable="false">
-                    </div>
-                </div>
-                <div id="countdown"></div>
-                <div id="scoreBox">Score: 0</div>
-                <div id="controlContainer">
-                    <div id="leftButton" class="control-button">◀</div>
-                    <div id="rightButton" class="control-button">▶</div>
-                </div>
-            </div>
-        </div>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+</div>
+
+<div id="mobile-controls-container">
+    <p id="mobile-instructions">Swipe or Tap to Move</p>
+    <div id="dpad-container">
+        <div id="up-btn" class="dpad-btn">▲</div>
+        <div id="left-btn" class="dpad-btn">◀</div>
+        <div id="right-btn" class="dpad-btn">▶</div>
+        <div id="down-btn" class="dpad-btn">▼</div>
     </div>
-    
-    <audio id="soundBackground" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_mc/rg_ge_1_as_mc_1/bg_mc.mp3" preload="auto" loop></audio>
-    <audio id="soundCar" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_sd_es/rg_ge_1_as_sd_es_1/ve_sd_sd_et.mp3" preload="auto" loop></audio>
-    <audio id="soundHit" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_sd_es/rg_ge_1_as_sd_es_1/ve_ht_sd_et.mp3" preload="auto"></audio>
-    <audio id="soundCollect" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_sd_es/rg_ge_1_as_sd_es_1/ct_ce_sd_et.mp3" preload="auto"></audio>
-    <audio id="soundOpening" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_sd_es/rg_ge_1_as_sd_es_1/ge_og_sd_et.mp3" preload="auto"></audio>
-    <audio id="soundCountdown" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/st_bp_ctdn_sd_et.mp3" preload="auto"></audio>
-    <audio id="soundClick" src="https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/ck_sd_et.mp3" preload="auto"></audio>
+</div>
 
-    <script>
-        const MAIN_HOME_URL = "index.html"; 
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const gameContainer = document.getElementById('game-container');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
 
-        document.addEventListener('contextmenu', e => e.preventDefault());
-        document.addEventListener('dragstart', e => e.preventDefault());
-        document.addEventListener('selectstart', e => e.preventDefault());
-        document.addEventListener('gesturestart', e => e.preventDefault());
+        // --- GAME CONSTANTS ---
+        const logicalWidth = 1024;  
+        const logicalHeight = 1144; 
+        const gridSize = 64;        
+        const uiBarHeight = 120;    
+        const gameAreaHeight = 1024;
+        
+        const initialSpeed = 8;
+        let currentSpeed = 8;
+        
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = logicalWidth * dpr;
+        canvas.height = logicalHeight * dpr;
+        ctx.scale(dpr, dpr);
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const gameContainer = document.getElementById('gameContainer');
-            const gameWrapper = document.getElementById('gameWrapper');
-            const canvas = document.getElementById('gameCanvas');
-            const ctx = canvas.getContext('2d');
-            ctx.imageSmoothingEnabled = true; // Better visuals
+        await document.fonts.load("180px 'Luckiest Guy'");
+        await document.fonts.load("64px 'Lilita One'");
 
-            const loaderScreen = document.getElementById('loaderScreen');
-            const progressBar = document.getElementById('progressBar');
-            const scoreBox = document.getElementById('scoreBox');
-            const menuScreen = document.getElementById('menuScreen');
-            const gameOverScreen = document.getElementById('gameOverScreen');
-            const startButton = document.getElementById('startButton');
-            const replayWrapper = document.getElementById('replayWrapper');
-            const replayButton = document.getElementById('replayButton');
-            const finalScoreElem = document.getElementById('finalScore');
-            const bestScoreElem = document.getElementById('bestScore');
-            const countdownElem = document.getElementById('countdown');
-            const controlContainer = document.getElementById('controlContainer');
-            const leftButton = document.getElementById('leftButton');
-            const rightButton = document.getElementById('rightButton');
-            const gameOverText = document.getElementById('gameOverText');
-            const scorePanel = document.getElementById('scorePanel');
-            const homeButton = document.getElementById('homeButton');
-            const backButton = document.getElementById('backButton');
-
-            // Sounds
-            const soundBackground = document.getElementById('soundBackground');
-            const soundCar = document.getElementById('soundCar');
-            const soundHit = document.getElementById('soundHit');
-            const soundCollect = document.getElementById('soundCollect');
-            const soundOpening = document.getElementById('soundOpening');
-            const soundCountdown = document.getElementById('soundCountdown');
-            const soundClick = document.getElementById('soundClick');
-
-            let gameState = 'loading';
-            let score = 0;
-            let roadY = 0;
-            
-            // --- GAMEPLAY BALANCE: THRILLING & ADDICTIVE ---
-            let roadSpeed = 420; // Higher start speed
-            let speedAcceleration = 20; // Ramps up fast
-            
-            let playerCar = {};
-            let obstacles = [];
-            let coins = [];
-            let popups = [];
-            let lastUsedObstacleIndex = -1;
-            
-            let moveDirection = null;
-            let isSwitchingLanes = false;
-            let laneSwitchCooldown = 150;
-            let lastSwitchTime = 0;
-            let lastTimestamp = 0;
-            
-            // Swipe vars
-            let touchStartX = 0;
-            let touchEndX = 0;
-
-            let roadImage, playerCarImage, coinImage;
-            let obstacleImages = [];
-            
-            const roadImgSrc = 'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_rs/rg_ge_1_as_rs_1/rd_2.png?raw=true';
-            const playerCarImgSrc = 'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_pr_cs/rg_ge_1_as_pr_cs_1/pr_cr_1.png?raw=true';
-            const coinImgSrc = 'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_cs/rg_ge_1_as_cs_1/cn_ce.gif?raw=true';
-            const obstacleSources = [
-                'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_os/rg_ge_1_as_os_1/wecr_oe.png?raw=true',
-                'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_os/rg_ge_1_as_os_1/oecr_oe.png?raw=true',
-                'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_os/rg_ge_1_as_os_1/gncr_oe.png?raw=true',
-                'https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_os/rg_ge_1_as_os_1/rdcr_oe.png?raw=true',
-            ];
-            const uiImageSources = [
-                'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true',
-                'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/ry_ne_ui_bn.png?raw=true',
-                'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_FFFFFF.png?raw=true',
-                'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/aw_bk_in_24dp_FFFFFF.png?raw=true'
-            ];
-            const soundSources = [soundBackground, soundCar, soundHit, soundCollect, soundOpening, soundCountdown, soundClick];
-            
-            let leftBoundary, rightBoundary;
-            let lanePositions = [];
-            let spawnCooldown = 750;
-            let minSpawnCooldown = 350;
-
-            async function init() {
-                // Force size calculation immediately
-                resizeGame();
-                await preloadAssets(progress => { progressBar.style.width = `${progress * 100}%`; });
-                gameState = 'menu';
-                menuScreen.style.display = 'flex';
-                loaderScreen.style.transition = "opacity 0.5s ease-out";
-                loaderScreen.style.opacity = 0;
-                setTimeout(() => { loaderScreen.style.display = 'none'; }, 500);
-                setupEventListeners();
-                requestAnimationFrame(gameLoop);
+        const assetUrls = {
+            images: { 
+                apple: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_cs/se_ge_1_as_cs_1/ae_ce.png?raw=true', 
+                playBtn: 'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true', 
+                replayBtn: 'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/ry_ne_ui_bn.png?raw=true', 
+                home_icon: 'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_FFFFFF.png?raw=true', 
+                arrow_back_icon: 'https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/aw_bk_in_24dp_FFFFFF.png?raw=true', 
+                head_up: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_hd_up.png?raw=true', 
+                head_down: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_hd_dn.png?raw=true', 
+                head_left: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_hd_lt.png?raw=true', 
+                head_right: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_hd_rt.png?raw=true', 
+                body_v: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_by_vl.png?raw=true', 
+                body_h: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_by_hl.png?raw=true', 
+                body_tl: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_by_tp_lt.png?raw=true', 
+                body_tr: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_by_tp_rt.png?raw=true', 
+                body_bl: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_by_bm_lt.png?raw=true', 
+                body_br: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_by_bm_rt.png?raw=true', 
+                tail_up: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_tl_up.png?raw=true', 
+                tail_down: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_tl_dn.png?raw=true', 
+                tail_left: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_tl_lt.png?raw=true', 
+                tail_right: 'https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_se/se_ge_1_as_se_1/se_tl_rt.png?raw=true' 
+            },
+            sounds: {
+                background: 'https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/se_ge_1/se_ge_1_as/se_ge_1_as_mc/se_ge_1_as_mc_1/bg_mc_1.mp3',
+                move: 'https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/se_ge_1/se_ge_1_as/se_ge_1_as_sd_es/se_ge_1_as_sd_es_1/me_sd_et_.mp3',
+                eat: 'https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/se_ge_1/se_ge_1_as/se_ge_1_as_sd_es/se_ge_1_as_sd_es_1/fd_et_sd_et.mp3',
+                gameOver: 'https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/se_ge_1/se_ge_1_as/se_ge_1_as_sd_es/se_ge_1_as_sd_es_1/ge_or_sd_et_.mp3',
+                click: 'https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/ck_sd_et.mp3',
+                countdown: 'https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/st_bp_ctdn_sd_et.mp3'
             }
+        };
+        
+        const assets = { images: {}, sounds: {} };
+        let assetsLoaded = 0;
+        const totalAssets = Object.keys(assetUrls.images).length + Object.keys(assetUrls.sounds).length;
 
-            function isMobileDevice() { return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 1024)); }
+        const moveSoundPool = [];
+        const POOL_SIZE = 5;
 
-            function loadAsset(asset) {
-                if (asset instanceof HTMLImageElement) {
-                    return new Promise((resolve, reject) => { if (asset.complete) return resolve(asset); asset.onload = () => resolve(asset); asset.onerror = reject; });
-                } else if (asset instanceof HTMLAudioElement) {
-                    return new Promise((resolve) => { if (asset.readyState >= 3) return resolve(); asset.addEventListener('canplaythrough', resolve, { once: true }); });
+        function onAssetLoad() { 
+            assetsLoaded++;
+            if (assetsLoaded === totalAssets) {
+                for(let i=0; i<POOL_SIZE; i++) {
+                    const s = new Audio(assetUrls.sounds.move);
+                    s.volume = 1.0;
+                    moveSoundPool.push(s);
                 }
             }
+        }
 
-            async function preloadAssets(onProgress) {
-                const imageElements = [new Image(), new Image(), new Image(), ...obstacleSources.map(() => new Image()), ...uiImageSources.map(() => new Image())];
-                const imageSrcs = [roadImgSrc, playerCarImgSrc, coinImgSrc, ...obstacleSources, ...uiImageSources];
-                imageSrcs.forEach((src, i) => imageElements[i].src = src);
-                const assetPromises = [...imageElements.map(loadAsset), ...soundSources.map(loadAsset)];
-                let loadedCount = 0;
-                const totalAssets = assetPromises.length;
-                onProgress(0);
-                const wrappedPromises = assetPromises.map(p => p.then(() => { loadedCount++; onProgress(loadedCount / totalAssets); }));
-                await Promise.all(wrappedPromises);
-                roadImage = imageElements[0]; playerCarImage = imageElements[1]; coinImage = imageElements[2]; obstacleImages = imageElements.slice(3, 7);
-            }
-
-            function setupEventListeners() {
-                // Resize listener
-                window.addEventListener('resize', resizeGame);
-                window.addEventListener('orientationchange', () => setTimeout(resizeGame, 100));
-
-                function playClickSound() { soundClick.currentTime = 0; soundClick.play(); }
-
-                function addPressAnimation(element) {
-                    const press = () => element.classList.add('button-clicked');
-                    const release = () => setTimeout(() => element.classList.remove('button-clicked'), 100);
-                    element.addEventListener('mousedown', press);
-                    element.addEventListener('touchstart', (e) => { press(); }, { passive: true });
-                    element.addEventListener('mouseup', release);
-                    element.addEventListener('mouseleave', release);
-                    element.addEventListener('touchend', release);
-                }
-
-                [startButton, replayButton, homeButton, backButton, leftButton, rightButton].forEach(btn => { if(btn) addPressAnimation(btn); });
-
-                [startButton, replayButton].forEach(btn => { btn.addEventListener('click', () => { playClickSound(); setTimeout(prepareGame, 150); }); });
-
-                [backButton, homeButton].forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        playClickSound();
-                        setTimeout(() => { window.location.href = MAIN_HOME_URL; }, 150);
-                    });
-                });
-                
-                const startMove = (direction) => { if (gameState === 'playing') moveDirection = direction; };
-                const endMove = () => { moveDirection = null; };
-
-                leftButton.addEventListener('mousedown', () => startMove('left'));
-                rightButton.addEventListener('mousedown', () => startMove('right'));
-                window.addEventListener('mouseup', endMove);
-                leftButton.addEventListener('touchstart', (e) => { if(e.cancelable) e.preventDefault(); startMove('left'); }, { passive: false });
-                rightButton.addEventListener('touchstart', (e) => { if(e.cancelable) e.preventDefault(); startMove('right'); }, { passive: false });
-                window.addEventListener('touchend', endMove);
-                
-                gameWrapper.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
-                gameWrapper.addEventListener('touchend', (e) => {
-                    if (gameState !== 'playing') return;
-                    touchEndX = e.changedTouches[0].screenX;
-                    if (touchEndX < touchStartX - 30) { switchLane('left'); leftButton.classList.add('active-touch'); setTimeout(() => leftButton.classList.remove('active-touch'), 100); }
-                    if (touchEndX > touchStartX + 30) { switchLane('right'); rightButton.classList.add('active-touch'); setTimeout(() => rightButton.classList.remove('active-touch'), 100); }
-                }, {passive: true});
-
-                window.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') startMove('left'); if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') startMove('right'); });
-                window.addEventListener('keyup', e => { if ((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') || (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd')) endMove(); });
-            }
-
-            function switchLane(direction) { if (!isSwitchingLanes && Date.now() - lastSwitchTime > laneSwitchCooldown) { isSwitchingLanes = true; if (direction === 'left' && playerCar.lane > 0) playerCar.lane--; else if (direction === 'right' && playerCar.lane < 3) playerCar.lane++; lastSwitchTime = Date.now(); } }
-            
-            function prepareGame() { 
-                gameOverText.classList.remove('game-over-anim'); scorePanel.classList.remove('score-panel-anim'); replayWrapper.classList.remove('fade-in-anim');
-                menuScreen.style.display = 'none'; gameOverScreen.style.display = 'none'; scoreBox.style.display = 'none'; controlContainer.style.display = 'none'; 
-                gameState = 'countdown'; score = 0; roadSpeed = 420; spawnCooldown = 750; updateScoreDisplay(); obstacles = []; coins = []; popups = []; createPlayerCar(); startCountdown(); 
-            }
-            
-            function startCountdown() { let count = 3; function showCount() { countdownElem.style.animation = 'none'; void countdownElem.offsetWidth; countdownElem.style.animation = 'countdown-zoom-fade 1s ease-in-out'; countdownElem.textContent = count > 0 ? count : 'GO!'; } soundCountdown.currentTime = 0; soundCountdown.play(); countdownElem.style.display = 'block'; showCount(); const timer = setInterval(() => { count--; if (count >= 0) showCount(); else { clearInterval(timer); countdownElem.style.display = 'none'; startGame(); } }, 1000); }
-            
-            function startGame() { 
-                gameState = 'playing'; scoreBox.style.display = 'block'; 
-                if (isMobileDevice()) controlContainer.style.display = 'flex'; else controlContainer.style.display = 'none';
-                soundOpening.volume = 0.5; soundOpening.play(); soundCar.volume = 0.9; soundCar.currentTime = 0; soundCar.play(); soundBackground.volume = 0.3; soundBackground.currentTime = 0; soundBackground.play(); 
-            }
-            
-            function triggerGameOver() { 
-                if (gameState !== 'playing') return; 
-                
-                // --- IMMEDIATE HIT SOUND (0ms Delay) ---
-                soundHit.currentTime = 0; 
-                soundHit.play().catch(e => console.log(e));
-
-                gameState = 'gameOver'; 
-                soundCar.pause(); 
-                soundBackground.pause(); 
-                
-                const finalScore = Math.floor(score); const targetBestScore = (Math.floor(finalScore / 100) + 1) * 100; 
-                finalScoreElem.textContent = finalScore; bestScoreElem.textContent = targetBestScore; 
-                gameOverScreen.style.display = 'flex'; gameOverText.classList.add('game-over-anim'); scorePanel.classList.add('score-panel-anim'); replayWrapper.classList.add('fade-in-anim'); 
-                controlContainer.style.display = 'none'; scoreBox.style.display = 'none'; 
-            }
-            
-            function createPlayerCar() { 
-                const carWidth = gameContainer.clientWidth * 0.10; 
-                const carHeight = carWidth * 1.8; 
-                const initialLane = Math.random() < 0.5 ? 1 : 2; 
-                playerCar = { img: playerCarImage, width: carWidth, height: carHeight, x: lanePositions[initialLane] - (carWidth / 2), y: 0, lane: initialLane }; 
-                updateCarYPosition(gameContainer.clientHeight);
-            }
-
-            function updateCarYPosition(height) {
-                if(playerCar.height) playerCar.y = height - playerCar.height - (height * 0.25);
-            }
-            
-            let lastSpawnTime = 0;
-            function manageSpawns(timestamp) { if (timestamp - lastSpawnTime > spawnCooldown) { if (!obstacles.length || obstacles[obstacles.length-1].y > gameContainer.clientHeight * 0.4) { spawnTrafficWave(); lastSpawnTime = timestamp; } } if ((!coins.length || coins[coins.length-1].y > gameContainer.clientHeight * 0.5) && Math.random() < 0.025) { spawnCoin(); } }
-            function spawnTrafficWave() { const carWidth = gameContainer.clientWidth * 0.10; let availableLanes = [0, 1, 2, 3]; for (const obs of obstacles) { if (obs.y < carWidth * 3.5) availableLanes = availableLanes.filter(lane => Math.abs(lane - obs.lane) > 1); } availableLanes.sort(() => Math.random() - 0.5); const numCarsToSpawn = Math.random() < 0.6 ? 1 : 2; for (let i = 0; i < numCarsToSpawn && availableLanes.length > 0; i++) { spawnObstacle(carWidth, availableLanes.pop()); } }
-            function spawnObstacle(carWidth, laneIndex) { const carHeight = carWidth * 1.8; let obstacleIndex = Math.floor(Math.random() * obstacleSources.length); if (obstacleIndex === lastUsedObstacleIndex) obstacleIndex = (obstacleIndex + 1) % obstacleSources.length; lastUsedObstacleIndex = obstacleIndex; obstacles.push({ img: obstacleImages[obstacleIndex], width: carWidth, height: carHeight, x: lanePositions[laneIndex] - (carWidth / 2), y: -carHeight * 2, speed: roadSpeed * 0.4 + Math.random() * 100, lane: laneIndex }); }
-            function spawnCoin() { const coinSize = gameContainer.clientWidth * 0.09; const laneIndex = Math.floor(Math.random() * 4); coins.push({ img: coinImage, width: coinSize, height: coinSize, x: lanePositions[laneIndex] - (coinSize / 2), y: -coinSize, speed: roadSpeed * 0.9 }); }
-            
-            function gameLoop(timestamp) { 
-                if (!lastTimestamp) lastTimestamp = timestamp; 
-                // --- STUCK FIX: Cap DeltaTime ---
-                // If phone lags, delta time becomes large. We cap it to 0.05 (20fps minimum simulation)
-                // This prevents objects from teleporting through the player.
-                const deltaTime = Math.min((timestamp - lastTimestamp) / 1000, 0.05); 
-                lastTimestamp = timestamp; 
-                
-                ctx.clearRect(0, 0, canvas.width, canvas.height); 
-                drawRoad(deltaTime); 
-                
-                if (gameState === 'playing' || gameState === 'countdown') { 
-                    movePlayer(); 
-                    updateGameObjects(deltaTime); 
-                    drawGameObjects(); 
-                    if(gameState === 'playing') { 
-                        checkCollisions(); 
-                        manageSpawns(Date.now()); 
-                        const scoreFactor = Math.min(score / 500, 1); 
-                        roadSpeed += (speedAcceleration + (scoreFactor * 12)) * deltaTime; 
-                        if (spawnCooldown > minSpawnCooldown) spawnCooldown -= 0.1; 
-                        score += (roadSpeed / 100) * deltaTime; 
-                        updateScoreDisplay(); 
-                    } 
-                } 
-                requestAnimationFrame(gameLoop); 
-            }
-            
-            function drawRoad(deltaTime) { if (!roadImage) return; let currentSpeed = 0; if (gameState === 'playing' || gameState === 'countdown') currentSpeed = roadSpeed; else if (gameState === 'menu') currentSpeed = 120; roadY = (roadY + currentSpeed * deltaTime) % canvas.height; ctx.drawImage(roadImage, 0, roadY, canvas.width, canvas.height); ctx.drawImage(roadImage, 0, roadY - canvas.height, canvas.width, canvas.height); }
-            function movePlayer() { if (playerCar.lane === undefined) return; if (moveDirection && !isSwitchingLanes) switchLane(moveDirection); const targetX = lanePositions[playerCar.lane] - (playerCar.width / 2); const dx = targetX - playerCar.x; playerCar.x += dx * 0.5; if (Math.abs(dx) < 1) { playerCar.x = targetX; isSwitchingLanes = false; } }
-            function updateGameObjects(deltaTime) { const update = (obj) => { obj.y += obj.speed * deltaTime; }; obstacles.forEach(update); coins.forEach(update); popups.forEach(p => { p.y -= 50 * deltaTime; p.alpha -= 1.5 * deltaTime; }); obstacles = obstacles.filter(obj => obj.y < canvas.height); coins = coins.filter(obj => obj.y < canvas.height); popups = popups.filter(p => p.alpha > 0); }
-            function drawGameObjects() { for (const obj of coins) ctx.drawImage(obj.img, obj.x, obj.y, obj.width, obj.height); for (const obj of obstacles) ctx.drawImage(obj.img, obj.x, obj.y, obj.width, obj.height); if (playerCar.img) ctx.drawImage(playerCar.img, playerCar.x, playerCar.y, playerCar.width, playerCar.height); ctx.font = "bold 2rem 'Bangers', cursive"; ctx.fillStyle = "#FFD700"; ctx.textAlign = "center"; for (const p of popups) { ctx.globalAlpha = p.alpha; ctx.fillText(p.text, p.x, p.y); } ctx.globalAlpha = 1.0; }
-            function checkCollisions() { if (!playerCar.width) return; for (const obs of obstacles) if (isColliding(playerCar, obs)) { triggerGameOver(); return; } for (let i = coins.length - 1; i >= 0; i--) { const coin = coins[i]; if (isColliding(playerCar, coin)) { score += 100; popups.push({ text: "+100", x: coin.x + coin.width/2, y: coin.y, alpha: 1 }); soundCollect.volume = 0.5; soundCollect.currentTime = 0; soundCollect.play(); coins.splice(i, 1); } } }
-            function isColliding(rect1, rect2) { return rect1.x < rect2.x + rect2.width && rect1.x + rect1.width > rect2.x && rect1.y < rect2.y + rect2.height && rect1.y + rect1.height > rect2.y; }
-            function updateScoreDisplay() { scoreBox.textContent = `Score: ${Math.floor(score)}`; }
-            
-            // --- HORIZONTAL COLLAPSE FIX (THE JS ENGINE) ---
-            function resizeGame() {
-                // Determine the correct aspect ratio (9:16)
-                const targetAspect = 9 / 16;
-                const windowW = window.innerWidth;
-                const windowH = window.innerHeight;
-                
-                let newW, newH;
-
-                // Check if screen is wider than the target aspect ratio (Landscape)
-                if (windowW / windowH > targetAspect) {
-                    // Height is the limiting factor (100% height)
-                    newH = windowH;
-                    newW = newH * targetAspect;
-                } else {
-                    // Width is the limiting factor (Portrait)
-                    newW = windowW;
-                    newH = newW / targetAspect;
-                }
-
-                // Apply explicit pixel sizes to prevent CSS collapse
-                gameContainer.style.width = `${newW}px`;
-                gameContainer.style.height = `${newH}px`;
-                
-                // Match Canvas Resolution
-                canvas.width = newW;
-                canvas.height = newH;
-                
-                // Recalculate Boundaries
-                const leftBoundaryPercent = 0.18; 
-                const rightBoundaryPercent = 0.82;
-                leftBoundary = newW * leftBoundaryPercent; 
-                rightBoundary = newW * rightBoundaryPercent;
-                const roadWidth = rightBoundary - leftBoundary; 
-                const laneWidth = roadWidth / 4;
-                lanePositions = [
-                    leftBoundary + laneWidth * 0.5, 
-                    leftBoundary + laneWidth * 1.5, 
-                    leftBoundary + laneWidth * 2.5, 
-                    leftBoundary + laneWidth * 3.5
-                ];
-                
-                // Update Player Position on Resize
-                if (playerCar.width) {
-                    const carWidth = newW * 0.10; 
-                    playerCar.width = carWidth; 
-                    playerCar.height = carWidth * 1.8;
-                    playerCar.x = lanePositions[playerCar.lane] - (carWidth / 2);
-                    updateCarYPosition(newH);
-                }
-            }
-            init();
+        Object.keys(assetUrls.images).forEach(key => { 
+            assets.images[key] = new Image(); 
+            assets.images[key].onload = onAssetLoad; 
+            assets.images[key].src = assetUrls.images[key]; 
         });
-    </script>
+        Object.keys(assetUrls.sounds).forEach(key => {
+            const audio = new Audio(assetUrls.sounds[key]);
+            audio.addEventListener('canplaythrough', onAssetLoad, { once: true });
+            assets.sounds[key] = audio;
+        });
+        assets.sounds.background.loop = true;
+        assets.sounds.background.volume = 0.15;
+
+        function playMoveSound() {
+            const sound = moveSoundPool.find(s => s.paused) || moveSoundPool[0];
+            if (sound) {
+                sound.currentTime = 0;
+                sound.play().catch(()=>{});
+            }
+        }
+
+        let snake, apple, score, currentDirection, moveQueue, gameState, gameLoopInterval;
+        let countdown = { text: '', alpha: 0, scale: 1 };
+        let gameOverAnim = { titleY: -200, panelY: -200, start: 0 };
+        let clickAnim = { active: false, name: '', scale: 1, start: 0 };
+        let loading = { current: 0, target: 0, fadeAlpha: 1, isDone: false };
+        let elementsOpacity = 1; 
+        let cachedBackground = null;
+        
+        const playBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 - 50, w: 300, h: 300 };
+        const replayBtnRect = { x: logicalWidth/2 - 150, y: logicalHeight/2 + 120, w: 300, h: 300 };
+        const backBtnRect = { x: 30, y: 20, w: 450, h: 100 };
+        const homeBtnRect = { x: logicalWidth - 140, y: 20, w: 120, h: 120 };
+
+        function init() {
+            snake = [{ x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }];
+            score = 0;
+            currentSpeed = initialSpeed;
+            currentDirection = { x: 1, y: 0 };
+            moveQueue = []; 
+            elementsOpacity = 1; 
+            spawnApple();
+            startCountdown();
+        }
+        
+        function update() {
+            if (moveQueue.length > 0) currentDirection = moveQueue.shift();
+
+            const head = { x: snake[0].x + currentDirection.x, y: snake[0].y + currentDirection.y };
+            const gridW = logicalWidth / gridSize;
+            const gridH = gameAreaHeight / gridSize;
+
+            if (head.x < 0 || head.x >= gridW || head.y < 0 || head.y >= gridH || snake.some(p => p.x === head.x && p.y === head.y)) {
+                endGame(); return;
+            }
+
+            snake.unshift(head);
+            if (head.x === apple.x && head.y === apple.y) {
+                score++;
+                if (score > 0 && score % 5 === 0) {
+                    currentSpeed = Math.min(20, currentSpeed + 1.5);
+                    clearInterval(gameLoopInterval);
+                    gameLoopInterval = setInterval(gameLoop, 1000 / currentSpeed);
+                }
+                assets.sounds.eat.currentTime = 0;
+                assets.sounds.eat.play();
+                spawnApple();
+            } else { snake.pop(); }
+        }
+
+        function gameLoop() { if (gameState === 'PLAYING') update(); }
+
+        function drawLoop(currentTime) {
+            draw(currentTime);
+            requestAnimationFrame(drawLoop);
+        }
+
+        function draw(currentTime) {
+            ctx.imageSmoothingEnabled = true; 
+            ctx.save();
+            if (shake.isShaking) {
+                const dx = (Math.random() - 0.5) * shake.magnitude;
+                const dy = (Math.random() - 0.5) * shake.magnitude;
+                ctx.translate(dx, dy);
+            }
+
+            if (gameState === 'LOADING' || loading.fadeAlpha > 0) {
+                drawLoadingScreen();
+                if (assetsLoaded === totalAssets && !loading.isDone) {
+                    loading.isDone = true;
+                    createCachedBackground();
+                    setTimeout(() => { 
+                        gameState = 'MENU'; 
+                        document.body.classList.add('game-loaded'); 
+                        window.dispatchEvent(new Event('resize'));
+                    }, 500);
+                }
+            }
+            
+            if (gameState !== 'LOADING') {
+                drawBackground();
+                // Draw Game Elements (Snake/Apple)
+                if (gameState === 'PLAYING' || gameState === 'GAMEOVER_ANIMATING' || gameState === 'GAMEOVER' || gameState === 'COUNTDOWN') {
+                    ctx.save();
+                    ctx.imageSmoothingEnabled = false; 
+                    // FADE OUT EFFECT
+                    ctx.globalAlpha = elementsOpacity;
+                    drawApple(currentTime);
+                    drawSnake();
+                    ctx.restore();
+                    
+                    // UI Bar (Always Opaque)
+                    drawUIBar();
+                }
+                if (gameState === 'MENU') drawHomeScreen(currentTime);
+                else if (gameState === 'GAMEOVER_ANIMATING') drawGameOverAnimation(currentTime);
+                else if (gameState === 'GAMEOVER') drawGameOverScreen(currentTime, true);
+                else if (gameState === 'COUNTDOWN') drawCountdown();
+            }
+            ctx.restore();
+        }
+        
+        function createCachedBackground() {
+            const bgCanvas = document.createElement('canvas');
+            bgCanvas.width = logicalWidth;
+            bgCanvas.height = logicalHeight;
+            const bgCtx = bgCanvas.getContext('2d');
+            
+            bgCtx.fillStyle = '#4A752C';
+            bgCtx.fillRect(0, 0, logicalWidth, logicalHeight);
+            for (let i = 0; i < 16; i++) for (let j = 0; j < 16; j++) {
+                bgCtx.fillStyle = (i + j) % 2 === 0 ? '#a2d149' : '#aad751';
+                bgCtx.fillRect(i * gridSize, j * gridSize + uiBarHeight, gridSize, gridSize);
+            }
+            cachedBackground = bgCanvas;
+        }
+
+        function drawBackground() {
+            if (cachedBackground) {
+                ctx.drawImage(cachedBackground, 0, 0);
+            } else {
+                ctx.fillStyle = '#4A752C';
+                ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+            }
+        }
+
+        function drawLoadingScreen() {
+            loading.target = assetsLoaded / totalAssets;
+            
+            // SMOOTH PROGRESS BAR LOGIC
+            let step = (loading.target - loading.current) * 0.1;
+            if (step < 0.001 && loading.target > loading.current) step = 0.005; 
+            loading.current += step;
+
+            if (loading.current > 0.99 && assetsLoaded === totalAssets) {
+                loading.current = 1;
+                loading.isDone = true;
+            }
+
+            if (loading.isDone && loading.fadeAlpha > 0) {
+                loading.fadeAlpha -= 0.05;
+                ctx.globalAlpha = Math.max(0, loading.fadeAlpha);
+            }
+            
+            // BG matches body
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+            
+            // 1. TITLE: SNAKE (Like Home Screen)
+            ctx.save();
+            ctx.font = "140px 'Luckiest Guy'";
+            ctx.fillStyle = '#87D37C'; // Snake Green
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 12;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = "rgba(0,0,0,0.5)";
+            ctx.shadowBlur = 10;
+            ctx.strokeText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 120);
+            ctx.fillText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 120);
+            ctx.restore();
+            
+            // 2. PROGRESS BAR
+            const barW = 600;
+            const barH = 40;
+            const barX = (logicalWidth - barW) / 2;
+            const barY = logicalHeight / 2;
+            
+            // Bar Background
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.roundRect(barX, barY, barW, barH, 20);
+            ctx.fill();
+
+            // Bar Fill (Orange)
+            if (loading.current > 0) {
+                ctx.fillStyle = '#FF9800'; 
+                ctx.beginPath();
+                const fillW = Math.max(20, barW * loading.current); 
+                ctx.roundRect(barX, barY, fillW, barH, 20);
+                ctx.fill();
+            }
+
+            // 3. TEXT: Loading...
+            ctx.font = "40px 'Lilita One'";
+            ctx.fillStyle = '#888888';
+            ctx.textAlign = 'center';
+            ctx.fillText("Loading...", logicalWidth / 2, barY + barH + 50);
+        }
+
+        function drawUIBar() {
+            ctx.fillStyle = '#FFF';
+            ctx.font = "64px 'Lilita One'";
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            
+            ctx.save();
+            ctx.imageSmoothingEnabled = false; 
+            ctx.drawImage(assets.images.apple, 40, uiBarHeight / 2 - 32, 64, 64);
+            ctx.restore();
+            
+            ctx.shadowColor = "rgba(0,0,0,0.3)";
+            ctx.shadowBlur = 5;
+            ctx.fillText(score, 130, uiBarHeight / 2 + 4);
+            ctx.shadowBlur = 0;
+        }
+
+        function drawApple(currentTime) {
+            if (!apple) return;
+            const scale = 1 + Math.sin(currentTime / 200) * 0.1;
+            const scaledSize = gridSize * scale;
+            const offset = (gridSize - scaledSize) / 2;
+            ctx.drawImage(assets.images.apple, apple.x * gridSize + offset, apple.y * gridSize + uiBarHeight + offset, scaledSize, scaledSize);
+        }
+        
+        function getSegmentImage(index) {
+            const segment = snake[index];
+            const segmentBefore = snake[index - 1];
+            const segmentAfter = snake[index + 1];
+
+            if (index === 0) {
+                if (currentDirection.x === 1) return assets.images.head_right;
+                if (currentDirection.x === -1) return assets.images.head_left;
+                if (currentDirection.y === 1) return assets.images.head_down;
+                if (currentDirection.y === -1) return assets.images.head_up;
+            } else if (!segmentAfter) {
+                const from = segmentBefore;
+                if (from.x < segment.x) return assets.images.tail_right;
+                if (from.x > segment.x) return assets.images.tail_left;
+                if (from.y < segment.y) return assets.images.tail_down;
+                if (from.y > segment.y) return assets.images.tail_up;
+            } else {
+                if (segmentBefore.x === segmentAfter.x) return assets.images.body_v;
+                if (segmentBefore.y === segmentAfter.y) return assets.images.body_h;
+                const p = segmentBefore, n = segmentAfter, c = segment;
+                if ((p.y < c.y && n.x < c.x) || (p.x < c.x && n.y < c.y)) return assets.images.body_tl;
+                if ((p.y < c.y && n.x > c.x) || (p.x > c.x && n.y < c.y)) return assets.images.body_tr;
+                if ((p.y > c.y && n.x < c.x) || (p.x < c.x && n.y > c.y)) return assets.images.body_bl;
+                if ((p.y > c.y && n.x > c.x) || (p.x > c.x && n.y > c.y)) return assets.images.body_br;
+            }
+            return null;
+        }
+
+        function drawSnake() {
+            if (!snake) return;
+            snake.forEach((segment, index) => {
+                const img = getSegmentImage(index);
+                if (img && img.complete) {
+                    ctx.drawImage(img, segment.x * gridSize, segment.y * gridSize + uiBarHeight, gridSize, gridSize);
+                }
+            });
+        }
+        
+        function drawHomeScreen(currentTime) {
+            drawBackground(); 
+
+            let backScale = (clickAnim.active && clickAnim.name === 'back') ? clickAnim.scale : 1;
+            
+            ctx.save();
+            ctx.translate(200, 60);
+            ctx.scale(backScale, backScale);
+            ctx.translate(-200, -60);
+            
+            ctx.drawImage(assets.images.arrow_back_icon, 40, 36, 48, 48);
+            ctx.font = "48px 'Lilita One'";
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText("Back to Games", 110, 60);
+            ctx.restore();
+
+            ctx.font = "180px 'Luckiest Guy'";
+            ctx.fillStyle = '#87D37C';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 16;
+            ctx.strokeText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 240);
+            ctx.fillText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 240);
+
+            let playScale = (clickAnim.active && clickAnim.name === 'play') ? clickAnim.scale : (1 + Math.sin(currentTime / 300) * 0.05);
+            const w = playBtnRect.w * playScale;
+            const h = playBtnRect.h * playScale;
+            const x = playBtnRect.x - (w - playBtnRect.w) / 2;
+            const y = playBtnRect.y - (h - playBtnRect.h) / 2;
+            ctx.drawImage(assets.images.playBtn, x, y, w, h);
+        }
+        
+        function drawGameOverScreen(currentTime, isFinal) {
+            drawGameOverContent(gameOverAnim.titleY, gameOverAnim.panelY, currentTime);
+        }
+        
+        function drawGameOverContent(titleY, panelY, currentTime) {
+            drawUIBar();
+            
+            let homeScale = (clickAnim.active && clickAnim.name === 'home') ? clickAnim.scale : 1;
+            const homeCenterX = logicalWidth - 80;
+            const homeCenterY = 60;
+            
+            ctx.save();
+            ctx.translate(homeCenterX, homeCenterY);
+            ctx.scale(homeScale, homeScale);
+            ctx.drawImage(assets.images.home_icon, -32, -32, 64, 64);
+            ctx.restore();
+
+            ctx.font = "160px 'Luckiest Guy'";
+            ctx.fillStyle = '#E74C3C';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 14;
+            ctx.strokeText("GAME OVER", logicalWidth / 2, titleY);
+            ctx.fillText("GAME OVER", logicalWidth / 2, titleY);
+            
+            const panelX = logicalWidth / 2 - 300, panelW = 600, panelH = 220;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.roundRect(panelX, panelY, panelW, panelH, 40);
+            ctx.fill();
+            ctx.stroke();
+
+            const bestTarget = score + 10;
+            ctx.font = "64px 'Lilita One'";
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Score: ${score}`, panelX + 60, panelY + 70);
+            ctx.fillText(`Best: ${bestTarget}`, panelX + 60, panelY + 150);
+
+            let replayScale = (clickAnim.active && clickAnim.name === 'replay') ? clickAnim.scale : (1 + Math.sin(currentTime / 300) * 0.05);
+            const w = replayBtnRect.w * replayScale;
+            const h = replayBtnRect.h * replayScale;
+            const x = replayBtnRect.x - (w - replayBtnRect.w) / 2;
+            const y = (panelY + panelH + 40) + (300-h)/2;
+            ctx.drawImage(assets.images.replayBtn, x, y, w, h);
+        }
+        
+        function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+        function drawGameOverAnimation(currentTime) {
+            const duration = 500;
+            if (!gameOverAnim.start) gameOverAnim.start = currentTime;
+            const elapsed = currentTime - gameOverAnim.start;
+            const progress = Math.min(elapsed / duration, 1);
+            const easedProgress = easeOutCubic(progress);
+
+            const titleStartY = -200, titleEndY = logicalHeight / 2 - 280;
+            gameOverAnim.titleY = titleStartY + (titleEndY - titleStartY) * easedProgress;
+
+            const panelStartY = -200, panelEndY = logicalHeight / 2 - 120;
+            gameOverAnim.panelY = panelStartY + (panelEndY - panelStartY) * easedProgress;
+            
+            // FADE OUT LOGIC
+            elementsOpacity = Math.max(0, 1 - progress); 
+
+            drawGameOverScreen(currentTime, false);
+
+            if (progress >= 1) {
+                gameState = 'GAMEOVER';
+                replayBtnRect.y = (gameOverAnim.panelY + 220 + 40);
+            }
+        }
+
+        function drawCountdown() {
+            if (countdown.alpha <= 0) return;
+            ctx.save();
+            ctx.globalAlpha = countdown.alpha;
+            ctx.font = "240px 'Luckiest Guy'";
+            ctx.fillStyle = '#FFC700';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 20;
+            const x = logicalWidth / 2;
+            const y = uiBarHeight + (gameAreaHeight / 2);
+            ctx.translate(x, y);
+            ctx.scale(countdown.scale, countdown.scale);
+            ctx.strokeText(countdown.text, 0, 0);
+            ctx.fillText(countdown.text, 0, 0);
+            ctx.restore();
+        }
+
+        async function startCountdown() {
+            gameState = 'COUNTDOWN';
+            try {
+                assets.sounds.countdown.currentTime = 0;
+                assets.sounds.countdown.play().catch(()=>{});
+            } catch (e) {}
+
+            const sequence = ['3', '2', '1', 'GO!'];
+            for (const text of sequence) {
+                await animateCountdownText(text);
+            }
+            gameState = 'PLAYING';
+            assets.sounds.background.currentTime = 0;
+            assets.sounds.background.play();
+            gameLoopInterval = setInterval(gameLoop, 1000 / currentSpeed);
+        }
+
+        function animateCountdownText(text) {
+            return new Promise(resolve => {
+                let start = performance.now();
+                countdown.text = text;
+                function animate(time) {
+                    const elapsed = time - start;
+                    // SLOWER ANIMATION: 1000ms (1 second) per number
+                    const duration = 1000; 
+                    const progress = Math.min(elapsed / duration, 1);
+                    countdown.scale = 1 + progress * 0.5;
+                    countdown.alpha = 1 - progress;
+                    if (progress < 1) requestAnimationFrame(animate);
+                    else resolve();
+                }
+                requestAnimationFrame(animate);
+            });
+        }
+
+        const shake = { isShaking: false, magnitude: 15, duration: 300, start: 0 };
+        function triggerShake() {
+            shake.isShaking = true;
+            shake.start = performance.now();
+            setTimeout(() => shake.isShaking = false, shake.duration);
+        }
+
+        function spawnApple() {
+            const gridW = logicalWidth / gridSize;
+            const gridH = gameAreaHeight / gridSize;
+            do { apple = { x: Math.floor(Math.random() * gridW), y: Math.floor(Math.random() * gridH) }; } 
+            while (snake.some(p => p.x === apple.x && p.y === apple.y));
+        }
+
+        function endGame() {
+            if (gameState === 'GAMEOVER' || gameState === 'GAMEOVER_ANIMATING') return;
+            gameState = 'GAMEOVER_ANIMATING';
+            gameOverAnim.start = 0;
+            elementsOpacity = 1; // Start fadeout
+            clearInterval(gameLoopInterval);
+            assets.sounds.background.pause();
+            assets.sounds.gameOver.play();
+            triggerShake();
+        }
+        
+        function setDirection(dir) {
+             if (gameState !== 'PLAYING') return;
+             
+             const lastMove = moveQueue.length > 0 ? moveQueue[moveQueue.length - 1] : currentDirection;
+             if (dir.x !== 0 && lastMove.x !== 0) return;
+             if (dir.y !== 0 && lastMove.y !== 0) return;
+             
+             if(moveQueue.length < 3) {
+                 moveQueue.push(dir);
+                 playMoveSound();
+             }
+        }
+
+        document.addEventListener('keydown', e => {
+            const key = e.key.toLowerCase();
+            if (key === 'arrowup' || key === 'w') setDirection({ x: 0, y: -1 });
+            else if (key === 'arrowdown' || key === 's') setDirection({ x: 0, y: 1 });
+            else if (key === 'arrowleft' || key === 'a') setDirection({ x: -1, y: 0 });
+            else if (key === 'arrowright' || key === 'd') setDirection({ x: 1, y: 0 });
+        });
+        
+        ['up-btn', 'down-btn', 'left-btn', 'right-btn'].forEach(id => {
+            const btn = document.getElementById(id);
+            const dir = { 'up-btn': {x:0, y:-1}, 'down-btn': {x:0, y:1}, 'left-btn': {x:-1, y:0}, 'right-btn': {x:1, y:0} }[id];
+            
+            // D-Pad Animation Logic
+            const handlePress = (e) => {
+                e.preventDefault();
+                setDirection(dir);
+                btn.classList.add('dpad-btn--active');
+            };
+            const handleRelease = (e) => {
+                e.preventDefault();
+                btn.classList.remove('dpad-btn--active');
+            };
+
+            btn.addEventListener('touchstart', handlePress, { passive: false });
+            btn.addEventListener('touchend', handleRelease, { passive: false });
+            btn.addEventListener('touchcancel', handleRelease, { passive: false });
+            // Mouse support for desktop testing
+            btn.addEventListener('mousedown', handlePress);
+            btn.addEventListener('mouseup', handleRelease);
+            btn.addEventListener('mouseleave', handleRelease);
+        });
+
+        let touchStartX = 0, touchStartY = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#mobile-controls-container')) return;
+            if (gameState === 'PLAYING') {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (gameState !== 'PLAYING' || !touchStartX || !touchStartY || e.target.closest('#mobile-controls-container')) return;
+            const dx = e.touches[0].clientX - touchStartX;
+            const dy = e.touches[0].clientY - touchStartY;
+            const threshold = 20;
+            
+            if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    setDirection({ x: dx > 0 ? 1 : -1, y: 0 });
+                } else {
+                    setDirection({ x: 0, y: dy > 0 ? 1 : -1 });
+                }
+                touchStartX = 0; 
+                touchStartY = 0;
+            }
+        }, { passive: false });
+
+        function triggerClickAnimation(name, onComplete) {
+            assets.sounds.click.currentTime = 0;
+            assets.sounds.click.play();
+            clickAnim = { active: true, name: name, start: performance.now(), duration: 150 };
+            
+            function animateClick(time) {
+                const elapsed = time - clickAnim.start;
+                const progress = Math.min(elapsed / clickAnim.duration, 1);
+                clickAnim.scale = 1 - Math.sin(progress * Math.PI) * 0.1;
+                if (progress < 1) {
+                    requestAnimationFrame(animateClick);
+                } else {
+                    clickAnim.active = false;
+                    if (onComplete) onComplete();
+                }
+            }
+            requestAnimationFrame(animateClick);
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            // Map physical click to logical game coordinates
+            const scaleX = logicalWidth / rect.width;
+            const scaleY = logicalHeight / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            if (gameState === 'MENU' && x > playBtnRect.x && x < playBtnRect.x + playBtnRect.w && y > playBtnRect.y && y < playBtnRect.y + playBtnRect.h) {
+                triggerClickAnimation('play', init);
+            } else if (gameState === 'GAMEOVER' && x > replayBtnRect.x && x < replayBtnRect.x + replayBtnRect.w && y > replayBtnRect.y && y < replayBtnRect.y + replayBtnRect.h) {
+                triggerClickAnimation('replay', init);
+            } else if (gameState === 'MENU' && x > backBtnRect.x && x < backBtnRect.x + backBtnRect.w && y > backBtnRect.y && y < backBtnRect.y + backBtnRect.h) {
+                triggerClickAnimation('back', () => window.location.href = "index.html");
+            } else if (gameState === 'GAMEOVER' && x > homeBtnRect.x && x < homeBtnRect.x + homeBtnRect.w && y > homeBtnRect.y && y < homeBtnRect.y + homeBtnRect.h) {
+                triggerClickAnimation('home', () => window.location.href = "index.html");
+            }
+        });
+        
+        gameState = 'LOADING';
+        requestAnimationFrame(drawLoop); 
+    });
+</script>
 </body>
 </html>
