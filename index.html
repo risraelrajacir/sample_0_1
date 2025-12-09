@@ -3,451 +3,768 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Flappy Bird</title>
+    <title>Dino Run Unlimited</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+
         html, body {
-            margin: 0; padding: 0; overflow: hidden;
-            width: 100%; height: 100%; background-color: #333;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #1a1a1a;
+            font-family: 'Fredoka One', cursive;
+            overflow: hidden;
+            touch-action: none;
         }
+
         #game-container {
-            width: 100%; height: 100%; display: flex;
-            justify-content: center; align-items: center;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
         }
+
         canvas {
-            border: 2px solid #000; background-color: #70c5ce; cursor: pointer;
-            max-width: 100%; max-height: 100%; object-fit: contain;
-            touch-action: none; -webkit-tap-highlight-color: transparent;
-            user-select: none; -webkit-user-select: none;
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            aspect-ratio: 16/9;
+            box-shadow: 0 0 40px rgba(0,0,0,0.7);
+            background-color: #4AC;
+            border-radius: 6px;
         }
-        #loader-container {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; justify-content: center; align-items: center;
-            background-color: rgba(0, 0, 0, 0.8);
-            z-index: 100; transition: opacity 0.5s ease-out;
+
+        /* 2. CUSTOM LOADER STYLE (Dark Mode + Text Below) */
+        #loader {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #1a1a1a; /* Dark Background */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.4s;
         }
-        #loader-content {
-            text-align: center; color: white; font-family: 'Arial Black', sans-serif;
+
+        h1 { 
+            margin: 0 0 20px 0; 
+            color: #f0f0f0; 
+            font-size: 5vw; 
+            letter-spacing: 2px;
+            text-shadow: 2px 2px #000;
         }
-        #progress-bar-container {
-            width: 250px; height: 20px; background-color: #555;
-            border: 2px solid #fff; border-radius: 10px; margin-top: 10px;
-        }
+        @media (min-width: 800px) { h1 { font-size: 50px; } }
+
         #progress-bar {
-            width: 0%; height: 100%; background-color: #f7e43b;
-            border-radius: 8px; transition: width 0.1s linear;
+            width: 60%;
+            max-width: 400px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            border: 2px solid #555;
+            overflow: hidden;
+            margin-bottom: 10px;
         }
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #ff9900; /* Vibrant Orange */
+            transition: width 0.1s linear;
+        }
+        
+        #loader-text {
+            color: #aaa;
+            font-size: 20px;
+            letter-spacing: 1px;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            height: 0;
+            display: none; 
+            z-index: 50;
+        }
+
+        .control-btn {
+            position: absolute;
+            bottom: 10px;
+            width: 90px;
+            height: 90px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            color: white;
+            user-select: none;
+            backdrop-filter: blur(4px);
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.1s, background 0.1s;
+        }
+
+        /* Click Animation for Controls */
+        .control-btn:active, .control-btn.active {
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0.9);
+        }
+
+        #btn-duck { left: 20px; }
+        #btn-jump { right: 20px; }
     </style>
 </head>
 <body>
-    <div id="loader-container">
-        <div id="loader-content">
-            <p>Loading Game...</p>
-            <div id="progress-bar-container">
-                <div id="progress-bar"></div>
-            </div>
-        </div>
+
+<div id="game-container">
+    <div id="loader">
+        <h1>DINO RUN</h1>
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+        <div id="loader-text">Loading...</div>
     </div>
-    <div id="game-container">
-        <canvas id="gameCanvas" width="288" height="512"></canvas>
+    
+    <div id="mobile-controls">
+        <div id="btn-duck" class="control-btn">⬇️</div>
+        <div id="btn-jump" class="control-btn">⬆️</div>
     </div>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const gameContainer = document.getElementById('game-container');
-        const loaderContainer = document.getElementById('loader-container');
-        const progressBar = document.getElementById('progress-bar');
+    <canvas id="gameCanvas" width="800" height="450"></canvas>
+</div>
 
-        function resizeGame() {
-            const gameRatio = canvas.width / canvas.height;
-            const containerRatio = gameContainer.clientWidth / gameContainer.clientHeight;
-            if (containerRatio < gameRatio) {
-                canvas.style.width = gameContainer.clientWidth + 'px';
-                canvas.style.height = (gameContainer.clientWidth / gameRatio) + 'px';
-            } else {
-                canvas.style.height = gameContainer.clientHeight + 'px';
-                canvas.style.width = (gameContainer.clientHeight * gameRatio) + 'px';
-            }
-        }
-        window.addEventListener('resize', resizeGame);
-        window.addEventListener('orientationchange', resizeGame);
-        resizeGame();
+<script>
+/**
+ * DINO RUN - ULTIMATE ADDICTIVE EDITION
+ * 
+ * 1. Challenge Logic:
+ *    - Score 0-500: 1-2 Cacti
+ *    - Score 500-1000: 2-3 Cacti (Mixed)
+ *    - Score 1000-1500: 3-4 Cacti
+ *    - Score 1500+: 4-5 Cacti (Mega Clusters)
+ * 2. Controls:
+ *    - Buttons: Touch with animation.
+ *    - Gestures: Swipe Up (Jump), Swipe Down (Duck).
+ * 3. Sound: Duck volume boosted.
+ * 4. Polish: Ground freeze fix, no bird/cactus overlap.
+ */
 
-        const assets = {
-            bird: [
-                "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bs/bd_ge_1_as_bs_1/be_bd_1.png?raw=true",
-                "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bs/bd_ge_1_as_bs_1/be_bd_2.png?raw=true",
-                "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bs/bd_ge_1_as_bs_1/be_bd_3.png?raw=true",
-                "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bs/bd_ge_1_as_bs_1/be_bd_4.png?raw=true"
-            ],
-            background: "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bgs/bd_ge_1_as_bgs_1/bg_dy_1.png?raw=true",
-            base: "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_bes/bd_ge_1_as_bes_1/gd_1.png?raw=true",
-            pipeTop: "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_ps/bd_ge_1_as_ps_1/gn_pe_tp.png?raw=true",
-            pipeBottom: "https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_ps/bd_ge_1_as_ps_1/gn_pe_bm.png?raw=true",
-            uiBackground: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/UIbg.png?raw=true",
-            getReady: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/tt_Gt_Ry_ui.png?raw=true",
-            gameOver: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/tt_Ge_Or_ui.png?raw=true",
-            playButton: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true",
-            replayButton: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/ry_ne_ui_bn.png?raw=true",
-            tapSymbol: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/tp_sl_ui.png?raw=true",
-            tapTickSymbol: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/tp_Tk_ui.png?raw=true",
-            homeIcon: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_FFFFFF.png?raw=true",
-            backIcon: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/aw_bk_in_24dp_FFFFFF.png?raw=true",
-            swoosh: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_sd_es/bd_ge_1_as_sd_es_1/sh_sd_et.mp3",
-            flap: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_sd_es/bd_ge_1_as_sd_es_1/fp_sd_et.mp3",
-            point: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_sd_es/bd_ge_1_as_sd_es_1/pt_sd_et.mp3",
-            hit: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_sd_es/bd_ge_1_as_sd_es_1/ht_sd_et.mp3",
-            die: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_sd_es/bd_ge_1_as_sd_es_1/de_sd_et.mp3",
-            click: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/ck_sd_et.mp3" // Added Click Sound
+const MAIN_HOME_URL = "index.html"; 
+
+const ASSETS_SRC = {
+    bg: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_bgs/dr_ge_1_as_bgs_1/bg_2.png?raw=true",
+    ground: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_gs/dr_ge_1_as_gs_1/gd_1.png?raw=true",
+    cactus: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_os/dr_ge_1_as_os_1/cs_1.png?raw=true",
+    btnPlay: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true",
+    btnReplay: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/ry_ne_ui_bn.png?raw=true",
+    iconBack: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/aw_bk_in_24dp_000000.png?raw=true",
+    iconHome: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_000000.png?raw=true",
+
+    idle: Array.from({length:10}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_le_${i+1}.png?raw=true`),
+    run: Array.from({length:8}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_rn_${i+1}.png?raw=true`),
+    jump: Array.from({length:12}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_jp_${i+1}.png?raw=true`),
+    dead: Array.from({length:8}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_dd_${i+1}.png?raw=true`),
+    bird: Array.from({length:4}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_os/dr_ge_1_as_os_1/dr_ge_1_as_os_1_bds_1/be_bd_${i+1}.png?raw=true`),
+    
+    bgMusic: "https://github.com/risraelrajacir/sample_0_1/raw/refs/heads/main/8-bit-background-music-for-arcade-game-come-on-mario-164702.mp3",
+    sndJump: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_sd_es/dr_ge_1_as_sd_es_1/jp_sd_et.mp3",
+    sndDuck: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_sd_es/dr_ge_1_as_sd_es_1/wh_sd_et.mp3",
+    sndDie: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/se_ge_1/se_ge_1_as/se_ge_1_as_sd_es/se_ge_1_as_sd_es_1/ge_or_sd_et_.mp3",
+    sndClick: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/ck_sd_et.mp3"
+};
+
+const CONFIG = {
+    startSpeed: 9.0,     // Thrilling Start
+    maxSpeed: 25.0,      // Go Go Mode
+    gravity: 0.75,
+    jumpForce: -14.5,
+    groundH: 80,
+    dinoSize: 85,
+    duckDuration: 45
+};
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const loader = document.getElementById('loader');
+const progress = document.getElementById('progress-fill');
+
+let assets = {};
+let sounds = {};
+let gameState = "INIT"; 
+let score = 0;
+let speed = CONFIG.startSpeed;
+let frames = 0;
+
+let dino = { x: 50, y: 0, vy: 0, state: "IDLE", frame: 0 };
+let obstacles = [];
+let groundOffset = 0;
+let input = { up: false, down: false };
+let duckTimer = 0;
+let inputLockDuck = false;
+let activeBtn = null; 
+
+// Swipe Variables
+let touchStartY = 0;
+let touchEndY = 0;
+
+let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+let ui = { flashOp: 0, textY: -100, boardY: 600, targetBoardY: 150, pulse: 1 };
+
+if(isMobile) document.getElementById('mobile-controls').style.display = 'block';
+
+// --- ASSET LOADER ---
+async function init() {
+    let toLoad = [];
+    const add = (k, s) => toLoad.push({k, s});
+    
+    add('bg', ASSETS_SRC.bg); add('ground', ASSETS_SRC.ground);
+    add('cactus', ASSETS_SRC.cactus); add('btnPlay', ASSETS_SRC.btnPlay);
+    add('btnReplay', ASSETS_SRC.btnReplay);
+    add('iconBack', ASSETS_SRC.iconBack);
+    add('iconHome', ASSETS_SRC.iconHome);
+    
+    ASSETS_SRC.idle.forEach((s, i)=> add(`idle_${i}`, s));
+    ASSETS_SRC.run.forEach((s, i)=> add(`run_${i}`, s));
+    ASSETS_SRC.jump.forEach((s, i)=> add(`jump_${i}`, s));
+    ASSETS_SRC.dead.forEach((s, i)=> add(`dead_${i}`, s));
+    ASSETS_SRC.bird.forEach((s, i)=> add(`bird_${i}`, s));
+
+    let loaded = 0;
+    const promise = (item) => new Promise(res => {
+        const img = new Image();
+        img.src = item.s;
+        img.onload = () => {
+            loaded++;
+            progress.style.width = (loaded/toLoad.length * 100) + "%";
+            res({k:item.k, img});
         };
+        img.onerror = () => res({k:item.k, img:null});
+    });
 
-        const images = {};
-        const sounds = {};
-        let totalAssets = 0;
-        let assetsLoaded = 0;
-
-        function updateLoader() {
-            assetsLoaded++;
-            const progress = (assetsLoaded / totalAssets) * 100;
-            progressBar.style.width = progress + '%';
-
-            if (assetsLoaded === totalAssets) {
-                main(); 
-                setTimeout(() => {
-                    loaderContainer.style.opacity = '0';
-                    setTimeout(() => {
-                        loaderContainer.style.display = 'none';
-                    }, 500);
-                }, 200);
-            }
+    const results = await Promise.all(toLoad.map(promise));
+    
+    assets.idle=[]; assets.run=[]; assets.jump=[]; assets.dead=[]; assets.bird=[];
+    results.forEach(({k, img}) => {
+        if(k.includes('_')) {
+            const [type, idx] = k.split('_');
+            assets[type][parseInt(idx)] = img;
+        } else {
+            assets[k] = img;
         }
+    });
 
-        function loadAssets() {
-            const imageKeys = ['background', 'base', 'pipeTop', 'pipeBottom', 'uiBackground', 'getReady', 'gameOver', 'playButton', 'replayButton', 'tapSymbol', 'tapTickSymbol', 'homeIcon', 'backIcon'];
-            const soundKeys = ['swoosh', 'flap', 'point', 'hit', 'die', 'click'];
-            totalAssets = imageKeys.length + assets.bird.length + soundKeys.length;
-            
-            imageKeys.forEach(key => { images[key] = new Image(); images[key].src = assets[key]; images[key].onload = updateLoader; });
-            images.bird = assets.bird.map(src => { const img = new Image(); img.src = src; img.onload = updateLoader; return img; });
-            soundKeys.forEach(key => {
-                sounds[key] = new Audio(assets[key]);
-                sounds[key].addEventListener('canplaythrough', updateLoader, { once: true });
-            });
+    sounds.bgm = new Audio(ASSETS_SRC.bgMusic);
+    sounds.bgm.loop = true;
+    sounds.bgm.volume = 0.5;
+
+    sounds.jump = new Audio(ASSETS_SRC.sndJump);
+    sounds.duck = new Audio(ASSETS_SRC.sndDuck);
+    sounds.duck.volume = 1.0; // Max volume for duck
+    sounds.die = new Audio(ASSETS_SRC.sndDie);
+    sounds.click = new Audio(ASSETS_SRC.sndClick);
+
+    setTimeout(() => {
+        loader.style.opacity = 0;
+        setTimeout(() => loader.remove(), 500);
+        goHome();
+        loop();
+    }, 500);
+}
+
+function playClickSound() {
+    sounds.click.currentTime = 0;
+    sounds.click.play().catch(()=>{});
+}
+
+function goHome() {
+    gameState = "HOME";
+    resetGame();
+    sounds.bgm.pause();
+    sounds.bgm.currentTime = 0;
+    ui.flashOp = 0; ui.textY = -100; ui.boardY = canvas.height + 200;
+}
+
+function startGame() {
+    gameState = "PLAY";
+    resetGame();
+    sounds.bgm.currentTime = 0;
+    sounds.bgm.play().catch(()=>{});
+}
+
+function resetGame() {
+    dino.y = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10; 
+    dino.vy = 0;
+    dino.state = "RUN"; 
+    obstacles = [];
+    score = 0;
+    speed = CONFIG.startSpeed;
+    frames = 0;
+    // DO NOT RESET groundOffset here, it causes the jump/stutter. 
+    // We let it continue or just pick up where it left off.
+    duckTimer = 0;
+    inputLockDuck = false;
+    activeBtn = null;
+}
+
+function update() {
+    // Pulse Animation
+    ui.pulse = 1 + Math.sin(frames * 0.1) * 0.05;
+
+    if (gameState === "HOME") {
+        frames++;
+        dino.state = "IDLE";
+    } 
+    else if (gameState === "PLAY") {
+        frames++;
+        score++;
+        
+        // Progressive Speed
+        if (speed < CONFIG.maxSpeed) {
+            speed += 0.002; 
         }
         
-        function playSound(soundKey) {
-            const sound = sounds[soundKey];
-            if (sound) {
-                sound.currentTime = 0;
-                sound.play().catch(e => {});
-            }
-        }
+        groundOffset = (groundOffset + speed) % assets.ground.width;
         
-        function main() {
-            const MAIN_HOME_URL = "index.html"; 
-            let frames = 0;
-            const DEGREE = Math.PI / 180;
-            const state = { current: 0, getReady: 0, instructions: 1, game: 2, over: 3 };
+        const floor = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10;
 
-            const flash = {
-                alpha: 0, speed: 0.1,
-                start: function() { this.alpha = 0.7; },
-                update: function() { this.alpha = Math.max(0, this.alpha - this.speed); },
-                draw: function() {
-                    if (this.alpha > 0) {
-                        ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    }
-                },
-                reset: function() { this.alpha = 0; }
-            };
+        dino.y += dino.vy;
 
-            const transition = {
-                alpha: 0, speed: 0.05, active: false, targetState: -1,
-                start: function(target) {
-                    if (this.active) return;
-                    this.active = true; this.isFadingOut = true; this.targetState = target; playSound('swoosh');
-                },
-                update: function() {
-                    if (!this.active) return;
-                    if (this.isFadingOut) {
-                        this.alpha = Math.min(1, this.alpha + this.speed);
-                        if (this.alpha >= 1) {
-                            this.isFadingOut = false; this.isFadingIn = true;
-                            if (state.current === state.over) resetGame();
-                            state.current = this.targetState;
-                        }
-                    } else if (this.isFadingIn) {
-                        this.alpha = Math.max(0, this.alpha - this.speed);
-                        if (this.alpha <= 0) { this.isFadingIn = false; this.active = false; }
-                    }
-                },
-                draw: function() {
-                    if (this.alpha > 0) {
-                        ctx.fillStyle = `rgba(0, 0, 0, ${this.alpha})`;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    }
+        if (dino.y >= floor) {
+            dino.y = floor;
+            dino.vy = 0;
+
+            if (duckTimer > 0) {
+                dino.state = "DUCK";
+                duckTimer--;
+                if(duckTimer <= 0) dino.state = "RUN"; 
+            } else {
+                dino.state = "RUN";
+            }
+
+            if (input.up) {
+                dino.vy = CONFIG.jumpForce;
+                dino.state = "JUMP";
+                duckTimer = 0;
+                sounds.jump.currentTime = 0;
+                sounds.jump.play().catch(()=>{});
+                input.up = false;
+            } 
+            else if (input.down) {
+                if (!inputLockDuck && duckTimer <= 0) {
+                    duckTimer = CONFIG.duckDuration;
+                    dino.state = "DUCK";
+                    sounds.duck.currentTime = 0;
+                    sounds.duck.play().catch(()=>{});
+                    inputLockDuck = true;
                 }
-            };
+            } else {
+                inputLockDuck = false;
+            }
 
-            const bg = { draw: () => ctx.drawImage(images.background, 0, 0, canvas.width, canvas.height) };
+        } else {
+            dino.vy += CONFIG.gravity;
+            dino.state = "JUMP";
+            if(input.down) dino.vy += 1.5;
+        }
+
+        manageObstacles();
+    }
+    else if (gameState === "DYING") {
+        frames++;
+        sounds.bgm.pause();
+        const floor = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10;
+        
+        // Fall
+        if (dino.y < floor) dino.y += CONFIG.gravity * 2;
+        else dino.y = floor;
+
+        if (dino.frame < assets.dead.length - 1) {
+            if (frames % 4 === 0) dino.frame++;
+        } else {
+            gameState = "GAMEOVER";
+        }
+    }
+    else if (gameState === "GAMEOVER") {
+        frames++; // Animate Pulse
+        const floor = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10;
+        if (dino.y < floor) dino.y += CONFIG.gravity * 2;
+
+        if(ui.flashOp > 0) ui.flashOp -= 0.03;
+        if(ui.textY < 80) ui.textY += (80 - ui.textY) * 0.1;
+        if(ui.boardY > ui.targetBoardY) ui.boardY += (ui.targetBoardY - ui.boardY) * 0.1;
+    }
+}
+
+function manageObstacles() {
+    // Gap calculation based on speed
+    let safeGap = (40 * speed) + 120;
+    
+    if (obstacles.length === 0 || canvas.width - obstacles[obstacles.length-1].x > safeGap) {
+        if(Math.random() > 0.1) {
             
-            const base = {
-                x: 0, y: canvas.height - 112, w: 336, h: 112, dx: 2,
-                draw: function() {
-                    ctx.drawImage(images.base, this.x, this.y, this.w, this.h);
-                    ctx.drawImage(images.base, this.x + this.w, this.y, this.w, this.h);
-                },
-                update: function() {
-                    if (state.current !== state.over) {
-                        this.x -= this.dx;
-                        if (this.x <= -this.w) this.x = 0;
-                    }
-                }
-            };
+            let type = Math.random() > 0.65 ? "BIRD" : "CACTUS";
+            let clusterSize = 1;
 
-            const bird = {
-                x: 80, y: 190, w: 34, h: 24, frame: 0,
-                gravity: 0.20, jump: 4.2, speed: 0, rotation: 0,
-                draw: function() {
-                    let birdImg = images.bird[this.frame];
-                    ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
-                    ctx.drawImage(birdImg, -this.w / 2, -this.h / 2, this.w, this.h);
-                    ctx.restore();
-                },
-                flap: function() { this.speed = -this.jump; },
-                update: function() {
-                    if (state.current === state.getReady || state.current === state.instructions) {
-                        this.frame = Math.floor((frames / 5) % images.bird.length);
-                        this.y = 190 + Math.sin(frames * DEGREE * 5) * 8;
-                        this.rotation = 0;
-                    } else {
-                        if (state.current !== state.over || this.y < base.y - this.h/2) {
-                            this.speed += this.gravity;
-                            this.y += this.speed;
-                        }
+            // --- PROGRESSIVE CHALLENGE LOGIC ---
+            if (type === "CACTUS") {
+                let r = Math.random();
+                if (score < 500) clusterSize = 1;
+                else if (score < 1000) clusterSize = (r>0.5) ? 2 : 1; 
+                else if (score < 1500) clusterSize = (r>0.5) ? 3 : 2; 
+                else if (score < 2000) clusterSize = (r>0.6) ? 4 : 3; 
+                else if (score < 3000) clusterSize = (r>0.7) ? 5 : 4; // Mega Cluster
+                else clusterSize = (r>0.8) ? 5 : 4; 
+            }
 
-                        if (this.y + this.h / 2 >= base.y) {
-                            this.y = base.y - this.h / 2;
-                            if (state.current === state.game) {
-                                state.current = state.over; playSound('hit'); flash.start(); gameOverSequence.start();
-                            }
-                        }
-
-                        if (state.current === state.over) {
-                            this.frame = 1;
-                            if (this.y < base.y - this.h/2) {
-                               this.rotation = Math.min(90 * DEGREE, this.rotation + 4 * DEGREE);
-                            }
-                        } else {
-                            this.frame = Math.floor((frames / 5) % images.bird.length);
-                            if (this.speed >= 0) {
-                                this.rotation = Math.min(90 * DEGREE, this.rotation + 4 * DEGREE);
-                            } else {
-                                this.rotation = -25 * DEGREE;
-                            }
-                        }
-                    }
-                },
-                reset: function() { this.speed = 0; this.y = 190; }
-            };
-
-            const pipes = {
-                position: [], w: 52, h: 320, gap: 100, maxYPos: -40, dx: 2,
-                draw: function() { for (let p of this.position) { ctx.drawImage(images.pipeTop, p.x, p.y); ctx.drawImage(images.pipeBottom, p.x, p.y + this.h + this.gap); }},
-                update: function() {
-                    if (state.current !== state.game) return;
-                    if (frames % 100 === 0) this.position.push({ x: canvas.width, y: this.maxYPos - (Math.random() * 200), passed: false });
-                    for (let i = this.position.length - 1; i >= 0; i--) {
-                        let p = this.position[i];
-                        p.x -= this.dx;
-                        let b = { left: bird.x - bird.w/2, right: bird.x + bird.w/2, top: bird.y - bird.h/2, bottom: bird.y + bird.h/2 };
-                        if (b.right > p.x && b.left < p.x + this.w && (b.top < p.y + this.h || b.bottom > p.y + this.h + this.gap)) {
-                            state.current = state.over; playSound('hit'); playSound('die'); flash.start(); gameOverSequence.start();
-                            bird.speed = 0;
-                        }
-                        if (p.x + this.w < bird.x && !p.passed) { score.value++; playSound('point'); p.passed = true; }
-                        if (p.x + this.w < 0) this.position.splice(i, 1);
-                    }
-                },
-                reset: function() { this.position = []; }
-            };
+            const groundTop = canvas.height - CONFIG.groundH;
             
-            const ui = {
-                titleSize: { w: 225, h: 45 }, panelSize: { w: 225, h: 112 },
-                buttonSize: { w: 100, h: 58 }, tapSymbolSize: { w: 80, h: 70 },
-                iconSize: { w: 24, h: 24},
-                tapSymbolAlpha: 1.0, isFadingTapSymbol: false,
-                isBackPressed: false, isHomePressed: false, isPlayPressed: false, isReplayPressed: false,
+            let currentX = canvas.width;
+            
+            for (let i = 0; i < clusterSize; i++) {
+                let obs = { type, x: currentX, w:0, h:0, frame:0 };
                 
-                get playRect() { return { x: (canvas.width - this.buttonSize.w) / 2, y: 280, ...this.buttonSize }; },
-                get replayRect() { return { x: (canvas.width - this.buttonSize.w) / 2, y: 310, ...this.buttonSize }; },
-                get backRect() { return { x: 10, y: 10, w: 160, h: 30 }; },
-                get homeRect() { return { x: canvas.width - this.iconSize.w - 10, y: 10, ...this.iconSize }; },
-
-                draw: function() {
-                    if (state.current === state.getReady) {
-                        this.drawPulsingButton(images.playButton, this.playRect, frames, this.isPlayPressed);
-                        ctx.drawImage(images.getReady, (canvas.width - this.titleSize.w) / 2, 100, this.titleSize.w, this.titleSize.h);
-                        this.drawBackButton();
-                    } else if (state.current === state.instructions || this.isFadingTapSymbol) {
-                        this.drawTapAnimation();
-                    } else if (state.current === state.over) {
-                        gameOverSequence.draw();
-                    }
-                },
-                drawBackButton: function() {
-                    const scale = this.isBackPressed ? 0.9 : 1.0;
-                    ctx.save(); ctx.translate(this.backRect.x, this.backRect.y + this.backRect.h / 2);
-                    ctx.scale(scale, scale);
-                    ctx.drawImage(images.backIcon, 0, -this.iconSize.h / 2, this.iconSize.w, this.iconSize.h);
-                    drawTextWithShadow("Back to Games", this.iconSize.w + 5, 5, "16px 'Arial Black', sans-serif", "left");
-                    ctx.restore();
-                },
-                drawPulsingButton: function(image, rect, frameCount, isPressed) {
-                    const scale = isPressed ? 0.9 : Math.sin(frameCount * DEGREE * 5) * 0.05 + 1;
-                    ctx.save(); ctx.translate(rect.x + rect.w / 2, rect.y + rect.h / 2);
-                    ctx.scale(scale, scale); ctx.drawImage(image, -rect.w / 2, -rect.h / 2, rect.w, rect.h); ctx.restore();
-                },
-                drawTapAnimation: function() {
-                    ctx.save(); ctx.globalAlpha = this.tapSymbolAlpha;
-                    let isTicked = Math.floor(frames / 20) % 2 === 0;
-                    let currentSymbol = isTicked ? images.tapTickSymbol : images.tapSymbol;
-                    let pulse = Math.sin(frames * DEGREE * 8) * 0.05 + 1;
-                    let w = this.tapSymbolSize.w * pulse, h = this.tapSymbolSize.h * pulse;
-                    ctx.drawImage(currentSymbol, (canvas.width - w) / 2, 250, w, h); ctx.restore();
-                },
-                drawHomeIcon: function() {
-                    const scale = this.isHomePressed ? 0.9 : 1.0;
-                    const r = this.homeRect;
-                    ctx.save();
-                    ctx.translate(r.x + r.w / 2, r.y + r.h / 2);
-                    ctx.scale(scale, scale);
-                    ctx.drawImage(images.homeIcon, -r.w / 2, -r.h / 2, r.w, r.h);
-                    ctx.restore();
-                },
-                update: function() {
-                    if (this.isFadingTapSymbol) {
-                        this.tapSymbolAlpha -= 0.05;
-                        if (this.tapSymbolAlpha <= 0) { this.isFadingTapSymbol = false; }
-                    }
-                },
-                reset: function() { this.tapSymbolAlpha = 1.0; this.isFadingTapSymbol = false; }
-            };
-
-            const gameOverSequence = {
-                step: 0, timer: 0, panelY: canvas.height, panelTargetY: 180, panelSpeed: 15,
-                start: function() { this.step = 1; this.timer = 0; score.checkNewBest(); },
-                update: function() {
-                    if (this.step === 0) return; this.timer++;
-                    if (this.step === 1 && this.timer > 30) { this.step = 2; }
-                    if (this.step === 2) {
-                        this.panelY = Math.max(this.panelTargetY, this.panelY - this.panelSpeed);
-                        if (this.panelY === this.panelTargetY) this.step = 3;
-                    }
-                    if (this.step === 3 && this.timer > 90) { this.step = 4; }
-                },
-                draw: function() {
-                    if (this.step >= 2) { ctx.drawImage(images.gameOver, (canvas.width - ui.titleSize.w) / 2, 120, ui.titleSize.w, ui.titleSize.h); }
-                    if (this.step >= 2) { ctx.drawImage(images.uiBackground, (canvas.width - ui.panelSize.w) / 2, this.panelY, ui.panelSize.w, ui.panelSize.h); }
-                    if (this.step === 4) {
-                        ui.drawPulsingButton(images.replayButton, ui.replayRect, frames, ui.isReplayPressed);
-                        ui.drawHomeIcon();
-                    }
-                },
-                reset: function() { this.step = 0; this.timer = 0; this.panelY = canvas.height; }
-            };
-
-            const score = {
-                best: parseInt(localStorage.getItem('flappybird_best')) || 0, value: 0, newBest: false,
-                draw: function() {
-                    if (state.current === state.game) { drawTextWithShadow(this.value, canvas.width / 2, 50, "35px 'Arial Black', sans-serif", "center"); }
-                    else if (state.current === state.over && gameOverSequence.step >= 2) {
-                        drawTextWithShadow("Score", 80, gameOverSequence.panelY + 42, "20px 'Arial Black', sans-serif", "left");
-                        drawTextWithShadow("Best", 80, gameOverSequence.panelY + 82, "20px 'Arial Black', sans-serif", "left");
-                        drawTextWithShadow(this.value, 210, gameOverSequence.panelY + 42, "20px 'Arial Black', sans-serif", "right");
-                        drawTextWithShadow(this.best, 210, gameOverSequence.panelY + 82, "20px 'Arial Black', sans-serif", "right");
-                        if(this.newBest && Math.floor(frames / 20) % 2 === 0){ drawTextWithShadow("NEW", 125, gameOverSequence.panelY + 82, "16px 'Arial Black', sans-serif", "left"); }
-                    }
-                },
-                checkNewBest: function() {
-                    if (this.value > this.best) {
-                        this.best = this.value;
-                        localStorage.setItem('flappybird_best', this.best);
-                        this.newBest = true;
-                    } else {
-                        this.newBest = false;
-                    }
-                },
-                reset: function() { this.value = 0; this.newBest = false; }
-            };
-            
-            function drawTextWithShadow(text, x, y, font, align){
-                ctx.font = font; ctx.textAlign = align;
-                ctx.fillStyle = "#000"; ctx.fillText(text, x + 2, y + 2);
-                ctx.fillStyle = "#FFF"; ctx.fillText(text, x, y);
-            }
-
-            function getMousePos(canvasEl, evt) {
-                const rect = canvasEl.getBoundingClientRect();
-                const scaleX = canvasEl.width / rect.width;
-                const scaleY = canvasEl.height / rect.height;
-                const clientX = evt.clientX || (evt.touches && evt.touches[0].clientX);
-                const clientY = evt.clientY || (evt.touches && evt.touches[0].clientY);
-                return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-            }
-            function isInside(pos, rect) { return pos.x > rect.x && pos.x < rect.x + rect.w && pos.y < rect.y + rect.h && pos.y > rect.y; }
-
-            function handleInput() {
-                if (state.current === state.instructions || state.current === state.game) {
-                    if (state.current === state.instructions) {
-                        ui.isFadingTapSymbol = true;
-                        state.current = state.game;
-                    }
-                    bird.flap(); playSound('flap');
-                }
-            }
-            
-            function processClick(evt) {
-                if (transition.active) return;
-                const pos = getMousePos(canvas, evt);
-                
-                if (state.current === state.getReady && isInside(pos, ui.backRect)) {
-                    playSound('click');
-                    ui.isBackPressed = true; setTimeout(() => { ui.isBackPressed = false; window.location.href = MAIN_HOME_URL; }, 150);
-                } else if (state.current === state.getReady && isInside(pos, ui.playRect)) {
-                    playSound('click');
-                    ui.isPlayPressed = true;
-                    setTimeout(() => { ui.isPlayPressed = false; transition.start(state.instructions); }, 150);
-                } else if (state.current === state.over && gameOverSequence.step === 4 && isInside(pos, ui.homeRect)) {
-                    playSound('click');
-                    ui.isHomePressed = true;
-                    setTimeout(() => { ui.isHomePressed = false; window.location.href = MAIN_HOME_URL; }, 150);
-                } else if (state.current === state.over && gameOverSequence.step === 4 && isInside(pos, ui.replayRect)) {
-                    playSound('click');
-                    ui.isReplayPressed = true;
-                    setTimeout(() => { ui.isReplayPressed = false; transition.start(state.getReady); }, 150);
+                if (type === "CACTUS") {
+                    obs.w = 50; obs.h = 60;
+                    obs.y = groundTop - obs.h; 
+                    currentX += 45; // Tight pack for single cluster
                 } else {
-                    handleInput();
+                    obs.w = 50; obs.h = 40;
+                    let isHigh = Math.random() > 0.5;
+                    if (isHigh) obs.y = groundTop - 85; 
+                    else obs.y = groundTop - 50; 
+                    currentX += 60; 
                 }
+                obstacles.push(obs);
             }
-            
-            canvas.addEventListener('click', processClick);
-            canvas.addEventListener('touchstart', (e) => { e.preventDefault(); processClick(e); }, { passive: false });
-            
-            document.addEventListener('keydown', (e) => { if (e.code === 'Space') handleInput(); });
-            
-            function resetGame() { bird.reset(); pipes.reset(); score.reset(); ui.reset(); flash.reset(); gameOverSequence.reset(); }
-            function update() { bird.update(); pipes.update(); base.update(); ui.update(); transition.update(); flash.update(); gameOverSequence.update(); }
-            function draw() { bg.draw(); pipes.draw(); bird.draw(); base.draw(); ui.draw(); score.draw(); flash.draw(); transition.draw(); }
+        }
+    }
 
-            function loop() {
-                update(); draw(); frames++; requestAnimationFrame(loop);
-            }
-            loop();
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        let o = obstacles[i];
+        o.x -= speed;
+        if(o.type === "BIRD" && frames % 10 === 0) o.frame++;
+
+        if (checkColl(dino, o)) {
+            gameState = "DYING";
+            dino.state = "DEAD";
+            dino.frame = 0;
+            sounds.die.play().catch(()=>{});
+            ui.flashOp = 0.7;
         }
 
-        loadAssets();
-    </script>
+        if(o.x < -100) obstacles.splice(i, 1);
+    }
+}
+
+function checkColl(d, o) {
+    let dx = d.x + 20;
+    let dy = d.y + 15;
+    let dw = CONFIG.dinoSize - 40;
+    let dh = CONFIG.dinoSize - 25;
+
+    if (d.state === "DUCK") {
+        dh = 35; 
+        dy = d.y + 50; 
+    }
+
+    let ox = o.x + 8;
+    let oy = o.y + 8;
+    let ow = o.w - 16;
+    let oh = o.h - 16;
+
+    return (dx < ox + ow && dx + dw > ox && dy < oy + oh && dy + dh > oy);
+}
+
+function draw() {
+    ctx.clearRect(0,0, canvas.width, canvas.height);
+
+    if(assets.bg) ctx.drawImage(assets.bg, 0, 0, canvas.width, canvas.height);
+
+    if(assets.ground) {
+        let x = -groundOffset;
+        while(x < canvas.width) {
+            ctx.drawImage(assets.ground, x, canvas.height - CONFIG.groundH, assets.ground.width, CONFIG.groundH);
+            x += assets.ground.width;
+        }
+    }
+
+    obstacles.forEach(o => {
+        if(o.type === "CACTUS") ctx.drawImage(assets.cactus, o.x, o.y, o.w, o.h);
+        else {
+            let img = assets.bird[o.frame % assets.bird.length];
+            if(img) ctx.drawImage(img, o.x, o.y, o.w, o.h);
+        }
+    });
+
+    let sprite;
+    if(dino.state === "IDLE") sprite = assets.idle[Math.floor(frames/10) % assets.idle.length];
+    else if(dino.state === "DEAD") sprite = (gameState === "GAMEOVER") ? assets.dead[7] : assets.dead[dino.frame % 8];
+    else if(dino.state === "JUMP") sprite = assets.jump[Math.floor(frames/5) % 12];
+    else if(dino.state === "DUCK") sprite = assets.dead[6] || assets.run[0]; 
+    else sprite = assets.run[Math.floor(frames/4) % 8];
+
+    if(sprite) ctx.drawImage(sprite, dino.x, dino.y, CONFIG.dinoSize, CONFIG.dinoSize);
+
+    if(ui.flashOp > 0.01) {
+        ctx.fillStyle = `rgba(255,255,255,${ui.flashOp})`;
+        ctx.fillRect(0,0, canvas.width, canvas.height);
+    }
+
+    drawUI();
+}
+
+function drawUI() {
+    if (gameState === "HOME") {
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#222";
+        ctx.lineWidth = 6;
+        ctx.textAlign = "center";
+        
+        ctx.font = "80px 'Fredoka One'";
+        ctx.strokeText("DINO RUN", canvas.width/2, 160);
+        ctx.fillText("DINO RUN", canvas.width/2, 160);
+
+        if (assets.btnPlay) {
+            const scale = (activeBtn === 'play') ? 0.9 : ui.pulse;
+            const w = 150 * scale;
+            const h = 150 * scale;
+            ctx.drawImage(assets.btnPlay, canvas.width/2 - w/2, 260 - h/2, w, h);
+        }
+
+        const scale = (activeBtn === 'back') ? 0.9 : 1.0;
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.beginPath();
+        ctx.roundRect(20, 20, 220 * scale, 50 * scale, 25);
+        ctx.fill();
+        if(assets.iconBack) ctx.drawImage(assets.iconBack, 30, 30, 30 * scale, 30 * scale);
+        ctx.fillStyle = "#333";
+        ctx.textAlign = "left";
+        ctx.font = (20 * scale) + "px 'Fredoka One'";
+        ctx.fillText("Back to Games", 70, 52);
+    }
+
+    if (gameState === "PLAY" || gameState === "DYING") {
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 4;
+        ctx.font = "40px 'Fredoka One'";
+        ctx.textAlign = "center";
+        ctx.strokeText(Math.floor(score), canvas.width/2, 60);
+        ctx.fillText(Math.floor(score), canvas.width/2, 60);
+    }
+
+    if (gameState === "GAMEOVER") {
+        ctx.save();
+        ctx.translate(0, ui.textY);
+        ctx.font = "60px 'Fredoka One'";
+        ctx.fillStyle = "#ff6f00";
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 5;
+        ctx.textAlign = "center";
+        ctx.strokeText("GAME OVER", canvas.width/2, 0);
+        ctx.fillText("GAME OVER", canvas.width/2, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(0, ui.boardY);
+        const pW = 320, pH = 170;
+        const pX = canvas.width/2 - pW/2, pY = 0;
+
+        ctx.fillStyle = "#ffe0b2";
+        ctx.strokeStyle = "#5d4037";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(pX, pY, pW, pH, 15);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#e65100";
+        ctx.font = "24px 'Fredoka One'";
+        ctx.textAlign = "right";
+        ctx.fillText("SCORE", pX+290, pY+45);
+        ctx.fillText("BEST", pX+290, pY+105);
+
+        ctx.fillStyle = "#333";
+        ctx.font = "35px 'Fredoka One'";
+        
+        // Motivation Score
+        let displayBest = Math.floor(score) + 50; 
+
+        ctx.fillText(Math.floor(score), pX+290, pY+80);
+        ctx.fillText(displayBest, pX+290, pY+140);
+        
+        ctx.beginPath();
+        ctx.arc(pX+70, pY+85, 40, 0, Math.PI*2);
+        ctx.fillStyle = score > 1500 ? "#ffca28" : (score > 500 ? "#cfd8dc" : "#a1887f"); 
+        ctx.fill();
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.restore();
+
+        if(assets.btnReplay) {
+            const scale = (activeBtn === 'replay') ? 0.9 : ui.pulse;
+            const w = 150 * scale;
+            const h = 150 * scale;
+            ctx.drawImage(assets.btnReplay, canvas.width/2 - w/2, (ui.boardY + 230) - h/2, w, h);
+        }
+
+        const scale = (activeBtn === 'home') ? 0.9 : 1.0;
+        const hSize = 50 * scale;
+        const hX = canvas.width - 20 - 50 + (50-hSize)/2; 
+        const hY = 20 + (50-hSize)/2;
+        
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.beginPath();
+        ctx.roundRect(hX, hY, hSize, hSize, 25);
+        ctx.fill();
+        if(assets.iconHome) ctx.drawImage(assets.iconHome, hX + 10, hY + 10, 30 * scale, 30 * scale);
+    }
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+function handlePress(x, y) {
+    if (gameState === "HOME") {
+        if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > 260 - 75 && y < 260 + 75) {
+            activeBtn = 'play';
+            playClickSound();
+        }
+        if (x >= 20 && x <= 240 && y >= 20 && y <= 70) {
+            activeBtn = 'back';
+            playClickSound();
+        }
+    }
+    else if (gameState === "GAMEOVER") {
+        if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > (ui.boardY + 230) - 75 && y < (ui.boardY + 230) + 75) {
+            activeBtn = 'replay';
+            playClickSound();
+        }
+        if (x >= canvas.width - 70 && x <= canvas.width - 20 && y >= 20 && y <= 70) {
+            activeBtn = 'home';
+            playClickSound();
+        }
+    }
+}
+
+function handleRelease() {
+    if (activeBtn === 'play') startGame();
+    if (activeBtn === 'back') setTimeout(() => window.location.href = MAIN_HOME_URL, 100);
+    if (activeBtn === 'replay') goHome();
+    if (activeBtn === 'home') setTimeout(() => window.location.href = MAIN_HOME_URL, 100);
+    activeBtn = null;
+}
+
+const getXY = (e) => {
+    let cx = e.touches ? e.touches[0].clientX : e.clientX;
+    let cy = e.touches ? e.touches[0].clientY : e.clientY;
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (cx - rect.left) * (canvas.width / rect.width),
+        y: (cy - rect.top) * (canvas.height / rect.height)
+    };
+};
+
+window.addEventListener('keydown', e => {
+    if(e.code === 'ArrowUp' || e.code === 'Space') input.up = true;
+    if(e.code === 'ArrowDown') input.down = true;
+});
+window.addEventListener('keyup', e => {
+    if(e.code === 'ArrowDown') input.down = false;
+    if(e.code === 'ArrowUp') input.up = false;
+});
+
+canvas.addEventListener('mousedown', e => {
+    const p = getXY(e);
+    if (gameState === "PLAY") input.up = true;
+    else handlePress(p.x, p.y);
+});
+
+canvas.addEventListener('mouseup', e => {
+    if (gameState === "PLAY") input.up = false;
+    else handleRelease();
+});
+
+// GESTURE CONTROL (SWIPE)
+canvas.addEventListener('touchstart', e => {
+    touchStartY = e.touches[0].clientY;
+    if(e.target.id === 'gameCanvas') e.preventDefault();
+    const p = getXY(e);
+    if (gameState !== "PLAY") handlePress(p.x, p.y);
+}, {passive:false});
+
+canvas.addEventListener('touchmove', e => {
+    if(gameState === "PLAY") {
+        e.preventDefault();
+        touchEndY = e.touches[0].clientY;
+    }
+}, {passive:false});
+
+canvas.addEventListener('touchend', e => {
+    if(e.target.id === 'gameCanvas') e.preventDefault();
+    if (gameState === "PLAY") { 
+        // Swipe Detection
+        const dist = touchStartY - touchEndY;
+        if (Math.abs(dist) > 30) {
+            if (dist > 0) input.up = true; // Swipe Up
+            else input.down = true; // Swipe Down
+            setTimeout(() => { input.up=false; input.down=false; }, 200);
+        }
+    } else {
+        handleRelease();
+    }
+});
+
+// Mobile Button specific Listeners override gestures
+if(isMobile) {
+    const bJ = document.getElementById('btn-jump');
+    const bD = document.getElementById('btn-duck');
+    
+    // Add visual feedback class toggle
+    bJ.addEventListener('touchstart', (e)=>{ 
+        e.stopPropagation(); 
+        input.up=true; 
+        bJ.style.transform = "scale(0.9)";
+        bJ.style.background = "rgba(255,255,255,0.4)";
+    });
+    bJ.addEventListener('touchend', (e)=>{ 
+        e.stopPropagation(); 
+        input.up=false; 
+        bJ.style.transform = "scale(1)";
+        bJ.style.background = "rgba(255,255,255,0.15)";
+    });
+    
+    bD.addEventListener('touchstart', (e)=>{ 
+        e.stopPropagation(); 
+        input.down=true; 
+        bD.style.transform = "scale(0.9)";
+        bD.style.background = "rgba(255,255,255,0.4)";
+    });
+    bD.addEventListener('touchend', (e)=>{ 
+        e.stopPropagation(); 
+        input.down=false; 
+        bD.style.transform = "scale(1)";
+        bD.style.background = "rgba(255,255,255,0.15)";
+    });
+}
+
+init();
+
+</script>
 </body>
 </html>
