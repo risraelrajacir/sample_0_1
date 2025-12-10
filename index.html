@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dino Run Unlimited</title>
+    <title>Dino Run Unlimited - Racing Edition</title>
     <style>
-        /* Import Main Font and Countdown Font */
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
+        /* Import Bangers for Countdown and Fredoka for UI */
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Fredoka+One&display=swap');
 
         html, body {
             margin: 0;
@@ -19,6 +18,7 @@
             overflow: hidden;
             touch-action: none;
             -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
 
         #game-container {
@@ -40,24 +40,22 @@
             border-radius: 6px;
         }
 
-        /* --- COUNTDOWN (User Requested Style) --- */
+        /* --- COUNTDOWN (Your Requested CSS) --- */
         #countdown {
             position: absolute; 
             top: 50%; 
             left: 50%;
-            transform: translate(-50%, -50%);
             font-family: 'Bangers', cursive; 
             color: #FFD700;
             text-shadow: 5px 5px 15px rgba(0,0,0,0.6);
             display: none; 
             font-size: 10rem;
+            animation: none; /* Controlled by JS */
             pointer-events: none;
-            z-index: 60;
-        }
-        
-        /* Animation Class */
-        .anim-countdown {
-            animation: countdown-zoom-fade 1s ease-in-out; 
+            z-index: 200;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            line-height: 1;
         }
 
         @keyframes countdown-zoom-fade { 
@@ -157,37 +155,32 @@
 <body>
 
 <div id="game-container">
-    
-    <!-- Loader -->
     <div id="loader">
         <h1>DINO RUN</h1>
         <div id="progress-bar-bg"><div id="progress-fill"></div></div>
-        <div id="loading-text">Loading...</div>
+        <div id="loading-text">Loading Assets...</div>
     </div>
+    
+    <!-- The Countdown Element -->
+    <div id="countdown"></div>
 
-    <!-- Countdown Element -->
-    <div id="countdown">3</div>
-
-    <!-- Mobile Controls -->
     <div id="mobile-controls">
         <div id="btn-duck" class="control-btn">⬇️</div>
         <div id="btn-jump" class="control-btn">⬆️</div>
     </div>
 
-    <!-- Game Canvas -->
     <canvas id="gameCanvas" width="800" height="450"></canvas>
 </div>
 
 <script>
 /**
- * DINO RUN - ULTIMATE ADDICTIVE EDITION
- * With 3-2-1 GO!! Countdown
+ * DINO RUN - ULTIMATE ADDICTIVE EDITION with 3-2-1 GO COUNTDOWN
  */
 
 const MAIN_HOME_URL = "index.html"; 
 
 const ASSETS_SRC = {
-    bg: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_bgs/dr_ge_1_as_bgs_1/bg_1.png?raw=true",
+    bg: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_bgs/dr_ge_1_as_bgs_1/bg_2.png?raw=true",
     ground: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_gs/dr_ge_1_as_gs_1/gd_1.png?raw=true",
     cactus: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_os/dr_ge_1_as_os_1/cs_1.png?raw=true",
     btnPlay: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true",
@@ -206,8 +199,9 @@ const ASSETS_SRC = {
     sndDuck: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_sd_es/dr_ge_1_as_sd_es_1/wh_sd_et.mp3",
     sndDie: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/se_ge_1/se_ge_1_as/se_ge_1_as_sd_es/se_ge_1_as_sd_es_1/ge_or_sd_et_.mp3",
     sndClick: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/ck_sd_et.mp3",
-    // ADDED COUNTDOWN SOUND
-    sndCount: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/st_bp_ctdn_sd_et.mp3"
+    
+    // --- NEW COUNTDOWN SOUND ---
+    sndCountdown: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/st_bp_ctdn_sd_et.mp3"
 };
 
 const CONFIG = {
@@ -237,7 +231,7 @@ let frames = 0;
 let dino = { x: 50, y: 0, vy: 0, state: "IDLE", frame: 0 };
 let obstacles = [];
 let groundOffset = 0; 
-let frozenGroundOffset = 0; 
+let frozenGroundOffset = 0;
 let input = { up: false, down: false };
 let duckTimer = 0;
 let inputLockDuck = false;
@@ -306,9 +300,8 @@ async function init() {
     sounds.die = new Audio(ASSETS_SRC.sndDie);
     sounds.click = new Audio(ASSETS_SRC.sndClick);
     
-    // Setup Countdown Sound
-    sounds.countdown = new Audio(ASSETS_SRC.sndCount);
-    sounds.countdown.volume = 1.0;
+    // Countdown Sound
+    sounds.countdown = new Audio(ASSETS_SRC.sndCountdown);
 
     setTimeout(() => {
         loader.style.opacity = 0;
@@ -326,75 +319,69 @@ function playClick() {
 function goHome() {
     gameState = "HOME";
     resetGameData();
+    // In Home state, Dino is idle
+    dino.state = "IDLE";
     sounds.bgm.pause();
     sounds.bgm.currentTime = 0;
     ui.flashOp = 0; ui.textY = -100; ui.boardY = canvas.height + 200;
 }
 
 // --- NEW COUNTDOWN LOGIC ---
-function triggerGameStart() {
-    // Before playing, we do the countdown
+function triggerCountdown() {
     gameState = "COUNTDOWN";
-    resetGameData();
+    resetGameData(); // Prepare Dino and ground
+    dino.state = "IDLE"; // Dino waits
     
-    // Clear UI from Home/Gameover
-    ui.flashOp = 0; ui.textY = -100; ui.boardY = canvas.height + 200;
-
-    // Start Sound
+    // Play Countdown Sound once
+    sounds.countdown.volume = 1.0;
     sounds.countdown.currentTime = 0;
     sounds.countdown.play().catch(()=>{});
 
-    let count = 3;
+    countdownEl.style.display = 'block';
     
-    // Function to run animation for a number
-    const runNumber = (text) => {
-        countdownEl.innerText = text;
-        countdownEl.style.display = 'block';
-        countdownEl.classList.remove('anim-countdown');
-        void countdownEl.offsetWidth; // Trigger reflow
-        countdownEl.classList.add('anim-countdown');
+    // Helper to animate text
+    const showText = (text, delay) => {
+        setTimeout(() => {
+            countdownEl.innerText = text;
+            // Reset Animation
+            countdownEl.style.animation = 'none';
+            countdownEl.offsetHeight; /* Trigger reflow */
+            countdownEl.style.animation = 'countdown-zoom-fade 1s ease-in-out';
+        }, delay);
     };
 
-    // 3
-    runNumber("3");
+    // Sequence: 3.. 2.. 1.. GO!!
+    showText("3", 0);
+    showText("2", 1000);
+    showText("1", 2000);
+    showText("GO!!", 3000);
 
-    // 2 (after 1s)
-    setTimeout(() => {
-        if(gameState === "COUNTDOWN") runNumber("2");
-    }, 1000);
-
-    // 1 (after 2s)
-    setTimeout(() => {
-        if(gameState === "COUNTDOWN") runNumber("1");
-    }, 2000);
-
-    // GO (after 3s)
-    setTimeout(() => {
-        if(gameState === "COUNTDOWN") runNumber("GO!!");
-    }, 3000);
-
-    // START (after 3.5s approx to sync with GO fade out)
+    // Start Game after "GO!!" animation finishes
     setTimeout(() => {
         countdownEl.style.display = 'none';
-        if(gameState === "COUNTDOWN") startGame();
+        startGame();
     }, 4000);
 }
 
 function startGame() {
     gameState = "PLAY";
+    // Start BG Music
     sounds.bgm.currentTime = 0;
     sounds.bgm.play().catch(()=>{});
+    
+    // No click sound here to avoid noise spam
 }
 
 function replayGame() {
-    // Replay also triggers countdown
-    triggerGameStart();
+    // Replay also goes through Countdown
+    triggerCountdown();
 }
 
 function resetGameData() {
+    // Reset position to ground
     dino.y = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10; 
     dino.vy = 0;
-    dino.state = "RUN"; 
+    dino.state = "IDLE"; 
     obstacles = [];
     score = 0;
     speed = CONFIG.startSpeed;
@@ -412,14 +399,15 @@ function update() {
     if (gameState === "HOME") {
         frames++;
         dino.state = "IDLE";
-        // Static ground
     } 
 
-    // --- COUNTDOWN STATE ---
+    // --- COUNTDOWN ---
     else if (gameState === "COUNTDOWN") {
+        // Just animate the dino breathing, but don't move ground or spawn obstacles
         frames++;
-        dino.state = "IDLE"; 
-        // Dino waits at start line, breathing
+        dino.state = "IDLE";
+        // Ensure dino is firmly on ground
+        dino.y = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10; 
     }
     
     // --- PLAY ---
@@ -427,7 +415,6 @@ function update() {
         frames++;
         score++;
         
-        // Speed Ramp
         if (speed < CONFIG.maxSpeed) {
             speed += 0.002; 
         }
@@ -510,7 +497,6 @@ function update() {
 }
 
 function manageObstacles() {
-    // Challenge Gapping
     let safeGap = (42 * speed) + 120;
     
     if (obstacles.length === 0 || canvas.width - obstacles[obstacles.length-1].x > safeGap) {
@@ -519,27 +505,24 @@ function manageObstacles() {
             let type = Math.random() > 0.65 ? "BIRD" : "CACTUS";
             let clusterSize = 1;
 
-            // --- EXTREME CHALLENGE LOGIC ---
             if (type === "CACTUS") {
                 let r = Math.random();
                 if (score < 500) clusterSize = 1;
                 else if (score < 1000) clusterSize = (r>0.5) ? 2 : 1;
                 else if (score < 1500) clusterSize = (r>0.5) ? 3 : 2;
                 else if (score < 2000) clusterSize = (r>0.6) ? 4 : 3;
-                else clusterSize = (r>0.8) ? 5 : 4; // Mega Cluster
+                else clusterSize = (r>0.8) ? 5 : 4; 
             }
 
             const groundTop = canvas.height - CONFIG.groundH;
             let currentX = canvas.width;
 
-            // Generate Cluster
             for(let i=0; i<clusterSize; i++) {
                 let obs = { type, x: currentX, w:0, h:0, frame:0 };
                 
                 if (type === "CACTUS") {
                     obs.w = 50; obs.h = 60;
-                    obs.y = groundTop - obs.h; // Top of ground
-                    // Tight packing
+                    obs.y = groundTop - obs.h; 
                     currentX += 45; 
                 } else {
                     obs.w = 50; obs.h = 40;
@@ -562,7 +545,6 @@ function manageObstacles() {
             gameState = "DYING";
             dino.state = "DEAD";
             dino.frame = 0;
-            // Freeze Ground!
             frozenGroundOffset = groundOffset;
             sounds.die.play().catch(()=>{});
             ui.flashOp = 0.7;
@@ -596,9 +578,11 @@ function draw() {
 
     if(assets.bg) ctx.drawImage(assets.bg, 0, 0, canvas.width, canvas.height);
 
-    // GROUND DRAWING (Gap Fix)
     if(assets.ground) {
-        let offsetToUse = (gameState === "DYING" || gameState === "GAMEOVER") ? frozenGroundOffset : groundOffset;
+        // Freeze ground visually during Countdown or Dying/Gameover
+        let offsetToUse = (gameState === "DYING" || gameState === "GAMEOVER" || gameState === "COUNTDOWN") ? frozenGroundOffset : groundOffset;
+        if (gameState === "COUNTDOWN") offsetToUse = 0; // Force static at start
+
         let x = -offsetToUse;
         while(x < canvas.width) {
             ctx.drawImage(assets.ground, x, canvas.height - CONFIG.groundH, assets.ground.width, CONFIG.groundH);
@@ -615,8 +599,8 @@ function draw() {
     });
 
     let sprite;
-    // In COUNTDOWN state, use Idle sprite
-    if(gameState === "COUNTDOWN" || dino.state === "IDLE") sprite = assets.idle[Math.floor(frames/10) % assets.idle.length];
+    // During countdown, Dino is Idle
+    if(dino.state === "IDLE" || gameState === "COUNTDOWN") sprite = assets.idle[Math.floor(frames/10) % assets.idle.length];
     else if(dino.state === "DEAD") sprite = (gameState === "GAMEOVER") ? assets.dead[7] : assets.dead[dino.frame % 8];
     else if(dino.state === "JUMP") sprite = assets.jump[Math.floor(frames/5) % 12];
     else if(dino.state === "DUCK") sprite = assets.dead[6] || assets.run[0]; 
@@ -632,13 +616,10 @@ function draw() {
     drawUI();
 }
 
-// --- UI AND ANIMATIONS ---
 function getScale(btnName) {
-    // Mobile: Click Only (Active)
     if (isMobile) {
         return (activeBtn === btnName) ? 0.94 : 1.0;
     } 
-    // PC: Hover Zoom + Click Shrink
     else {
         if (activeBtn === btnName) return 0.94;
         if (hoverBtn === btnName) return 1.03;
@@ -720,9 +701,8 @@ function drawUI() {
         ctx.fillStyle = "#333";
         ctx.font = "35px 'Fredoka One'";
         
-        // Motivation Score
         let displayBest = Math.floor(score) + 50; 
-        if (score > sessionBest && sessionBest > 0) displayBest = score; // Just beat it
+        if (score > sessionBest && sessionBest > 0) displayBest = score;
 
         ctx.fillText(Math.floor(score), pX+290, pY+80);
         ctx.fillText(displayBest, pX+290, pY+140);
@@ -757,14 +737,12 @@ function drawUI() {
     }
 }
 
-// --- INPUT & INTERACTION ---
 function loop() {
     update();
     draw();
     requestAnimationFrame(loop);
 }
 
-// Coordinate Translator
 const getXY = (e) => {
     let cx = e.touches ? e.touches[0].clientX : e.clientX;
     let cy = e.touches ? e.touches[0].clientY : e.clientY;
@@ -775,7 +753,6 @@ const getXY = (e) => {
     };
 };
 
-// Button Hitbox Checks
 function checkButtons(x, y) {
     if (gameState === "HOME") {
         if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > 185 && y < 335) return 'play';
@@ -788,30 +765,30 @@ function checkButtons(x, y) {
     return null;
 }
 
-// Mouse Down / Touch Start
 function onInteractStart(x, y) {
     const target = checkButtons(x, y);
     if (target) {
         activeBtn = target;
-        playClick();
+        playClick(); // Only play click for buttons
     } else {
+        // Gameplay control tap - NO CLICK SOUND
         if (gameState === "PLAY") input.up = true;
     }
 }
 
-// Mouse Up / Touch End
 function onInteractEnd() {
     if (activeBtn) {
-        if (activeBtn === 'play') triggerGameStart(); // CHANGED TO TRIGGER COUNTDOWN
+        // Start via Countdown
+        if (activeBtn === 'play') triggerCountdown();
+        if (activeBtn === 'replay') triggerCountdown(); 
+        
         if (activeBtn === 'back') setTimeout(() => window.location.href = MAIN_HOME_URL, 100);
-        if (activeBtn === 'replay') replayGame(); // REPLAY TRIGGERS COUNTDOWN TOO
         if (activeBtn === 'home') setTimeout(() => window.location.href = MAIN_HOME_URL, 100);
     }
     activeBtn = null;
     input.up = false;
 }
 
-// PC Hover Logic
 canvas.addEventListener('mousemove', e => {
     if(!isMobile) {
         const p = getXY(e);
@@ -826,14 +803,13 @@ canvas.addEventListener('mousedown', e => {
 });
 canvas.addEventListener('mouseup', onInteractEnd);
 
-// Touch Logic (Gestures + Taps)
 canvas.addEventListener('touchstart', e => {
     if(e.target.id === 'gameCanvas') e.preventDefault();
     const p = getXY(e);
     touchStartY = p.y;
     
-    // If Play/Gameover, check UI buttons first
-    if (gameState !== "PLAY") {
+    // Ignore touches during countdown
+    if (gameState !== "COUNTDOWN") {
         onInteractStart(p.x, p.y);
     }
 }, {passive:false});
@@ -846,33 +822,36 @@ canvas.addEventListener('touchmove', e => {
 canvas.addEventListener('touchend', e => {
     if(e.target.id === 'gameCanvas') e.preventDefault();
     
-    // Swipe Logic
     if (gameState === "PLAY") {
         const dist = touchStartY - touchEndY;
         if (Math.abs(dist) > 30) {
-            if (dist > 0) input.up = true; // Swipe Up
-            else input.down = true; // Swipe Down
+            if (dist > 0) input.up = true; 
+            else input.down = true; 
             setTimeout(() => { input.up=false; input.down=false; }, 200);
         }
     }
-    
     onInteractEnd();
 });
 
-// Mobile On-Screen Buttons
+// Mobile On-Screen Buttons - REMOVED CLICK SOUNDS
 if(isMobile) {
     const btnJ = document.getElementById('btn-jump');
     const btnD = document.getElementById('btn-duck');
-    btnJ.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); playClick(); input.up=true; btnJ.style.transform="scale(0.9)"; });
+    
+    // NO playClick() here
+    btnJ.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); input.up=true; btnJ.style.transform="scale(0.9)"; });
     btnJ.addEventListener('touchend', (e)=>{ e.preventDefault(); input.up=false; btnJ.style.transform="scale(1)"; });
-    btnD.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); playClick(); input.down=true; btnD.style.transform="scale(0.9)"; });
+    
+    // NO playClick() here
+    btnD.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); input.down=true; btnD.style.transform="scale(0.9)"; });
     btnD.addEventListener('touchend', (e)=>{ e.preventDefault(); input.down=false; btnD.style.transform="scale(1)"; });
 }
 
-// Keyboard
 window.addEventListener('keydown', e => {
-    if(e.code === 'ArrowUp' || e.code === 'Space') input.up = true;
-    if(e.code === 'ArrowDown') input.down = true;
+    if (gameState === "PLAY") {
+        if(e.code === 'ArrowUp' || e.code === 'Space') input.up = true;
+        if(e.code === 'ArrowDown') input.down = true;
+    }
 });
 window.addEventListener('keyup', e => {
     if(e.code === 'ArrowDown') input.down = false;
@@ -882,6 +861,5 @@ window.addEventListener('keyup', e => {
 init();
 
 </script>
-
 </body>
 </html>
