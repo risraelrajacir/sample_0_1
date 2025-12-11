@@ -51,7 +51,6 @@
             height: 100%;
             display: block;
             object-fit: contain;
-            /* Cursor logic handled in JS, but default here */
             cursor: default;
         }
         
@@ -225,16 +224,24 @@
         const assets = { images: {}, sounds: {} };
         let assetsLoaded = 0;
         const totalAssets = Object.keys(assetUrls.images).length + Object.keys(assetUrls.sounds).length;
+        
+        // --- SOUND POOLS (Fix for missing sounds) ---
         const moveSoundPool = [];
+        const clickSoundPool = [];
         const POOL_SIZE = 5;
 
         function onAssetLoad() { 
             assetsLoaded++;
             if (assetsLoaded === totalAssets) {
+                // Initialize Pools
                 for(let i=0; i<POOL_SIZE; i++) {
-                    const s = new Audio(assetUrls.sounds.move);
-                    s.volume = 1.0;
-                    moveSoundPool.push(s);
+                    const sMove = new Audio(assetUrls.sounds.move);
+                    sMove.volume = 1.0;
+                    moveSoundPool.push(sMove);
+                    
+                    const sClick = new Audio(assetUrls.sounds.click);
+                    sClick.volume = 1.0;
+                    clickSoundPool.push(sClick);
                 }
             }
         }
@@ -252,8 +259,14 @@
         assets.sounds.background.loop = true;
         assets.sounds.background.volume = 0.15;
 
+        // Helpers for pooled sounds
         function playMoveSound() {
             const sound = moveSoundPool.find(s => s.paused) || moveSoundPool[0];
+            if (sound) { sound.currentTime = 0; sound.play().catch(()=>{}); }
+        }
+        
+        function playClickSound() {
+            const sound = clickSoundPool.find(s => s.paused) || clickSoundPool[0];
             if (sound) { sound.currentTime = 0; sound.play().catch(()=>{}); }
         }
 
@@ -265,7 +278,6 @@
             home: { x: logicalWidth - 140, y: 20, w: 120, h: 120, scale: 1, clicked: false, animTime: 0 }
         };
 
-        // UI Configuration
         const UI_HOVER_SCALE = 1.03;
         const UI_CLICK_SCALE = 0.94;
         
@@ -322,14 +334,12 @@
             requestAnimationFrame(drawLoop);
         }
 
-        // --- BUTTON LOGIC ---
         function updateButtonAnimations(time) {
             let cursorPointer = false;
 
             for (let key in buttons) {
                 const btn = buttons[key];
                 
-                // Only process buttons active in current state
                 let isActive = false;
                 if (gameState === 'MENU' && (key === 'play' || key === 'back')) isActive = true;
                 if (gameState === 'GAMEOVER' && (key === 'replay' || key === 'home')) isActive = true;
@@ -339,30 +349,24 @@
                     continue;
                 }
 
-                // Hover Logic (PC Only)
                 let isHovered = false;
                 if (!isTouchDevice && mouseX >= btn.x && mouseX <= btn.x + btn.w && mouseY >= btn.y && mouseY <= btn.y + btn.h) {
                     isHovered = true;
                     cursorPointer = true;
                 }
 
-                // Click Animation Logic (PC & Mobile)
                 if (btn.clicked) {
                     const elapsed = time - btn.animTime;
                     const duration = 150;
                     if (elapsed < duration) {
-                        // Shrink to 0.94 then back to 1
                         const progress = elapsed / duration;
-                        // Sine wave 0 -> 1 -> 0 mapped to scale 1 -> 0.94 -> 1
                         btn.scale = 1 - Math.sin(progress * Math.PI) * (1 - UI_CLICK_SCALE);
                     } else {
                         btn.clicked = false;
                         btn.scale = isHovered ? UI_HOVER_SCALE : 1;
-                        // Execute Action after animation
                         executeButtonAction(key);
                     }
                 } else {
-                    // Smooth Hover Transition
                     const target = isHovered ? UI_HOVER_SCALE : 1;
                     btn.scale += (target - btn.scale) * 0.2;
                 }
@@ -437,9 +441,13 @@
             else { ctx.fillStyle = '#4A752C'; ctx.fillRect(0, 0, logicalWidth, logicalHeight); }
         }
 
+        // --- FAST & SMOOTH LOADER ---
         function drawLoadingScreen() {
             loading.target = assetsLoaded / totalAssets;
-            loading.current += (loading.target - loading.current) * 0.05;
+            // Increased speed factor (0.3) for "Very fast no delay"
+            loading.current += (loading.target - loading.current) * 0.3;
+            // Snap to end if close
+            if(Math.abs(loading.target - loading.current) < 0.01) loading.current = loading.target;
             
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, logicalWidth, logicalHeight);
@@ -528,10 +536,9 @@
         function drawHomeScreen(currentTime) {
             drawBackground(); 
 
-            // Back Button Group
             const btn = buttons.back;
             ctx.save();
-            ctx.translate(200, 60); // Pivot
+            ctx.translate(200, 60); 
             ctx.scale(btn.scale, btn.scale);
             ctx.translate(-200, -60);
             ctx.drawImage(assets.images.arrow_back_icon, 40, 36, 48, 48);
@@ -542,7 +549,6 @@
             ctx.fillText("Back to Games", 110, 60);
             ctx.restore();
 
-            // Title
             ctx.font = "180px 'Luckiest Guy'";
             ctx.fillStyle = '#87D37C';
             ctx.textAlign = 'center';
@@ -551,7 +557,6 @@
             ctx.strokeText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 240);
             ctx.fillText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 240);
 
-            // Play Button
             const pBtn = buttons.play;
             ctx.save();
             ctx.translate(pBtn.x + pBtn.w/2, pBtn.y + pBtn.h/2);
@@ -567,7 +572,6 @@
         function drawGameOverContent(titleY, panelY, currentTime) {
             drawUIBar();
             
-            // Home Button
             const hBtn = buttons.home;
             const homeCenterX = logicalWidth - 80;
             const homeCenterY = 60;
@@ -601,10 +605,8 @@
             ctx.fillText(`Score: ${score}`, panelX + 60, panelY + 70);
             ctx.fillText(`Best: ${bestTarget}`, panelX + 60, panelY + 150);
 
-            // Replay Button
             if (gameState === 'GAMEOVER') {
                 const rBtn = buttons.replay;
-                // Update dynamic Y based on animation
                 rBtn.y = (panelY + panelH + 40);
                 
                 ctx.save();
@@ -749,7 +751,6 @@
             btn.addEventListener('mouseleave', handleRelease);
         });
 
-        // --- INPUT HANDLING ---
         canvas.addEventListener('mousemove', e => {
             isTouchDevice = false;
             const rect = canvas.getBoundingClientRect();
@@ -766,7 +767,6 @@
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
             }
-            // Update coordinates for click detection on touch
             const rect = canvas.getBoundingClientRect();
             const scaleX = logicalWidth / rect.width;
             const scaleY = logicalHeight / rect.height;
@@ -796,7 +796,6 @@
         function checkButtonClick() {
             for (let key in buttons) {
                 const btn = buttons[key];
-                // Hit detection
                 if (mouseX >= btn.x && mouseX <= btn.x + btn.w && mouseY >= btn.y && mouseY <= btn.y + btn.h) {
                     let isActive = false;
                     if (gameState === 'MENU' && (key === 'play' || key === 'back')) isActive = true;
@@ -805,8 +804,7 @@
                     if (isActive && !btn.clicked) {
                         btn.clicked = true;
                         btn.animTime = performance.now();
-                        assets.sounds.click.currentTime = 0;
-                        assets.sounds.click.play();
+                        playClickSound();
                     }
                 }
             }
