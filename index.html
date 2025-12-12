@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dino Run - Ultimate Swipe Edition</title>
+    <title>Dino Run - Fixed Controls</title>
     <style>
-        /* FONTS */
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
 
@@ -17,7 +16,7 @@
             background-color: #1a1a1a;
             font-family: 'Fredoka One', cursive;
             overflow: hidden;
-            /* CRITICAL: Prevents browser swipe history/scroll interactions */
+            /* CRITICAL FIX: Disables browser handling of gestures */
             touch-action: none; 
             -webkit-tap-highlight-color: transparent;
             user-select: none;
@@ -43,7 +42,7 @@
             border-radius: 6px;
         }
 
-        /* --- SMOOTH LOADER --- */
+        /* --- LOADER --- */
         #loader {
             position: absolute;
             top: 0; left: 0;
@@ -54,7 +53,7 @@
             justify-content: center;
             align-items: center;
             z-index: 100;
-            transition: opacity 0.4s ease-out;
+            transition: opacity 0.3s;
         }
 
         h1 {
@@ -83,8 +82,8 @@
             height: 100%;
             width: 0%;
             background: #ff8800;
-            /* Smooth visual update */
-            transition: width 0.1s linear; 
+            /* Smooth interpolation */
+            transition: width 0.2s linear; 
             box-shadow: 0 0 10px #ff8800;
         }
         #loading-text {
@@ -142,7 +141,6 @@
             transition: transform 0.1s ease, background 0.1s ease;
         }
 
-        /* Visual Feedback Class */
         .btn-clicked {
             transform: scale(0.85);
             background: rgba(255, 255, 255, 0.5);
@@ -173,11 +171,10 @@
 
 <script>
 /**
- * DINO RUN - ULTIMATE SWIPE EDITION
- * - True Mobile Swipe (ScreenY calculation)
- * - Smooth "Fake" Loader Interpolation
- * - Fixed Back Button
- * - Mega Cluster Logic
+ * DINO RUN - FIXED SWIPE EDITION
+ * - Fixed Swipe Up (Blocked browser scroll)
+ * - Smooth Loader (Visual Interpolation)
+ * - Full Mega Cluster & Audio Support
  */
 
 const MAIN_HOME_URL = "index.html"; 
@@ -237,16 +234,14 @@ let input = { up: false, down: false };
 let duckTimer = 0;
 let inputLockDuck = false;
 
-// UI State
 let activeBtn = null; 
 let hoverBtn = null;
-
 let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 let ui = { flashOp: 0, textY: -100, boardY: 600, targetBoardY: 150 };
 
 if(isMobile) document.getElementById('mobile-controls').style.display = 'block';
 
-// --- SMOOTH LOADER SYSTEM ---
+// --- SMOOTH LOADER ---
 async function init() {
     let toLoad = [];
     const add = (k, s) => toLoad.push({k, s});
@@ -264,33 +259,31 @@ async function init() {
     ASSETS_SRC.bird.forEach((s, i)=> add(`bird_${i}`, s));
 
     let loadedCount = 0;
-    const totalItems = toLoad.length;
-    let visualProgress = 0;
-
-    // Logic: If loading is fast, visual bar still fills smoothly
-    const updateVisualBar = () => {
-        const actualProgress = (loadedCount / totalItems) * 100;
-        // Always move visual closer to actual
-        if (visualProgress < actualProgress) {
-            visualProgress += 5; // Fill Speed
-            if(visualProgress > actualProgress) visualProgress = actualProgress;
-        }
-        progress.style.width = visualProgress + "%";
+    
+    // VISUAL LOADER LOOP (Makes it feel fast & smooth)
+    let visualP = 0;
+    const updateLoader = () => {
+        // Automatically animate bar up to 90%
+        if (visualP < 90) visualP += 2;
+        // If real load is done, jump to 100%
+        if (loadedCount >= toLoad.length) visualP = 100;
         
-        if (visualProgress < 100 || loadedCount < totalItems) {
-            requestAnimationFrame(updateVisualBar);
+        progress.style.width = visualP + "%";
+        
+        if (visualP < 100) {
+            requestAnimationFrame(updateLoader);
         } else {
-            // Done
             setTimeout(() => {
                 loader.style.opacity = 0;
-                setTimeout(() => loader.remove(), 400);
+                setTimeout(() => loader.remove(), 300);
                 goHome();
                 loop();
             }, 200);
         }
     };
-    updateVisualBar();
+    updateLoader();
 
+    // REAL ASSET LOADING
     const promise = (item) => new Promise(res => {
         const img = new Image();
         img.src = item.s;
@@ -430,7 +423,6 @@ function update() {
                 input.up = false;
             } 
             else if (input.down) {
-                // If swipe down detected, force duck
                 if (!inputLockDuck && duckTimer <= 0) {
                     duckTimer = CONFIG.duckDuration;
                     dino.state = "DUCK";
@@ -527,7 +519,6 @@ function manageObstacles() {
             sounds.die.play().catch(()=>{});
             ui.flashOp = 0.7;
         }
-
         if(o.x < -100) obstacles.splice(i, 1);
     }
 }
@@ -705,7 +696,7 @@ function drawUI() {
     }
 }
 
-// --- INPUT & INTERACTION ---
+// --- INPUT HANDLERS ---
 function loop() {
     update();
     draw();
@@ -722,7 +713,6 @@ const getXY = (e) => {
     };
 };
 
-// Button Hitbox
 function checkButtons(x, y) {
     if (gameState === "HOME") {
         if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > 185 && y < 335) return 'play';
@@ -735,14 +725,12 @@ function checkButtons(x, y) {
     return null;
 }
 
-// Click Start
 function onInteractStart(x, y) {
     const target = checkButtons(x, y);
     if (target) {
         activeBtn = target;
         playClick(); 
     } else {
-        // Desktop tap jump (Mobile handled by swipe/touchend)
         if (gameState === "PLAY" && !isMobile) input.up = true;
     }
 }
@@ -771,62 +759,56 @@ canvas.addEventListener('mousedown', e => {
 });
 canvas.addEventListener('mouseup', onInteractEnd);
 
-// --- TRUE MOBILE SWIPE CONTROLS ---
+// --- FIXED SWIPE LOGIC ---
 let touchStartY = 0;
 let touchEndY = 0;
 
+// 1. Capture Start Y
 canvas.addEventListener('touchstart', e => {
-    // If NOT detecting button, prevent default to stop scroll
-    if(e.target.id === 'gameCanvas') e.preventDefault(); 
+    if(e.target.id === 'gameCanvas') e.preventDefault();
+    touchStartY = e.changedTouches[0].clientY;
     
-    // Use changedTouches[0].screenY for raw swipe detection irrespective of canvas scale
-    touchStartY = e.changedTouches[0].screenY;
-    
-    // Check for UI taps
+    // Check buttons
     const p = getXY(e);
     const target = checkButtons(p.x, p.y);
-    if (target) {
-        activeBtn = target;
-        playClick();
-    }
+    if(target) { activeBtn = target; playClick(); }
 }, {passive:false});
 
+// 2. PREVENT SCROLLING (Crucial for Swipe Up)
 canvas.addEventListener('touchmove', e => {
-    e.preventDefault(); // Stop scrolling completely on canvas
+    e.preventDefault(); 
 }, {passive:false});
 
+// 3. Capture End Y & Calculate
 canvas.addEventListener('touchend', e => {
     if(e.target.id === 'gameCanvas') e.preventDefault();
+    touchEndY = e.changedTouches[0].clientY;
     
-    // Get End Y
-    touchEndY = e.changedTouches[0].screenY;
-    
+    // Only swipe if no button active
     if (!activeBtn && gameState === "PLAY") {
-        const diff = touchStartY - touchEndY;
-        const threshold = 30; // 30px swipe threshold
-
-        // SWIPE UP (Positive Diff)
-        if (diff > threshold) {
+        // SWIPE UP: Start > End (Finger moves up, Y decreases)
+        // Diff = Start - End. If Positive -> UP.
+        let diff = touchStartY - touchEndY;
+        
+        if (diff > 40) {
+            // SWIPE UP -> JUMP
             input.up = true;
-            // Reset jump input quickly
-            setTimeout(()=>{ input.up = false; }, 150);
-        }
-        // SWIPE DOWN (Negative Diff)
-        else if (diff < -threshold) {
-            input.down = true; // Will trigger Duck in update()
-            // Reset down input is handled by update() timers
-        }
-        // TAP (No Swipe)
+            setTimeout(() => input.up = false, 150);
+        } 
+        else if (diff < -40) {
+            // SWIPE DOWN -> DUCK
+            input.down = true; 
+        } 
         else {
-            input.up = true; 
-            setTimeout(()=>{ input.up = false; }, 150);
+            // TAP -> JUMP
+            input.up = true;
+            setTimeout(() => input.up = false, 150);
         }
     }
     onInteractEnd();
 }, {passive:false});
 
 
-// --- MOBILE BUTTONS (Visuals Only) ---
 if(isMobile) {
     const btnJ = document.getElementById('btn-jump');
     const btnD = document.getElementById('btn-duck');
@@ -836,10 +818,9 @@ if(isMobile) {
     btnJ.addEventListener('touchend', (e)=>{ e.preventDefault(); set(btnJ,0); input.up=false; });
     
     btnD.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); set(btnD,1); input.down=true; });
-    btnD.addEventListener('touchend', (e)=>{ e.preventDefault(); set(btnD,0); /* Let update() handle duck timer release */ });
+    btnD.addEventListener('touchend', (e)=>{ e.preventDefault(); set(btnD,0); });
 }
 
-// Keyboard
 window.addEventListener('keydown', e => {
     if(e.code === 'ArrowUp' || e.code === 'Space') input.up = true;
     if(e.code === 'ArrowDown') input.down = true;
