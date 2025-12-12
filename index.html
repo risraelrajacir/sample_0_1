@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Snake HD</title>
     <style>
-        /* IMPORT FONTS */
         @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Lilita+One&display=swap');
         
         :root {
@@ -35,7 +34,6 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        /* --- GAME AREA --- */
         #game-container {
             position: relative;
             overflow: hidden;
@@ -188,9 +186,8 @@
         canvas.height = logicalHeight * dpr;
         ctx.scale(dpr, dpr);
 
-        // Preload fonts immediately
-        document.fonts.load("180px 'Luckiest Guy'");
-        document.fonts.load("64px 'Lilita One'");
+        await document.fonts.load("180px 'Luckiest Guy'");
+        await document.fonts.load("64px 'Lilita One'");
 
         const assetUrls = {
             images: { 
@@ -227,13 +224,11 @@
         const assets = { images: {}, sounds: {} };
         let assetsLoaded = 0;
         const totalAssets = Object.keys(assetUrls.images).length + Object.keys(assetUrls.sounds).length;
-        
-        // --- SOUND POOLS ---
         const moveSoundPool = [];
         const clickSoundPool = [];
         const POOL_SIZE = 5;
 
-        // LOAD HANDLER: Works for both success and error to prevent stuck loader
+        // --- ASSET LOADER WITH ERROR HANDLING (NO STUCK) ---
         function onAssetLoad() { 
             assetsLoaded++;
             if (assetsLoaded === totalAssets) {
@@ -250,20 +245,18 @@
             }
         }
 
-        // LOAD ASSETS
         Object.keys(assetUrls.images).forEach(key => { 
             assets.images[key] = new Image(); 
             assets.images[key].onload = onAssetLoad; 
-            assets.images[key].onerror = onAssetLoad; // Fail-safe
+            assets.images[key].onerror = onAssetLoad; // Prevent stuck on error
             assets.images[key].src = assetUrls.images[key]; 
         });
         Object.keys(assetUrls.sounds).forEach(key => {
             const audio = new Audio(assetUrls.sounds[key]);
             audio.addEventListener('canplaythrough', onAssetLoad, { once: true });
-            audio.addEventListener('error', onAssetLoad, { once: true }); // Fail-safe
+            audio.addEventListener('error', onAssetLoad); // Prevent stuck on error
             assets.sounds[key] = audio;
         });
-        
         assets.sounds.background.loop = true;
         assets.sounds.background.volume = 0.15;
 
@@ -373,8 +366,15 @@
         }
 
         function executeButtonAction(key) {
-            if (key === 'play' || key === 'replay') init();
-            if (key === 'back' || key === 'home') window.location.href = "index.html";
+            if (key === 'play' || key === 'replay') {
+                init();
+            }
+            // Add DELAY for Navigation buttons so Sound plays first
+            if (key === 'back' || key === 'home') {
+                setTimeout(() => {
+                    window.location.href = "index.html";
+                }, 200); // 200ms delay ensures click sound is heard
+            }
         }
 
         function draw(currentTime) {
@@ -388,7 +388,7 @@
 
             if (gameState === 'LOADING') {
                 drawLoadingScreen();
-                // INSTANT FINISH: If assets ready, finish immediately
+                // FAST EXIT: Wait for assets + very high progress bar fill
                 if (assetsLoaded === totalAssets && loading.current > 0.99 && !loading.isDone) {
                     loading.isDone = true;
                     createCachedBackground();
@@ -396,7 +396,7 @@
                         gameState = 'MENU'; 
                         document.body.classList.add('game-loaded'); 
                         window.dispatchEvent(new Event('resize'));
-                    }, 50); // Minimal delay
+                    }, 100);
                 }
             }
             else {
@@ -441,13 +441,16 @@
 
         function drawLoadingScreen() {
             loading.target = assetsLoaded / totalAssets;
-            // ACCELERATED INTERPOLATION: 0.3 for very fast smooth fill
-            loading.current += (loading.target - loading.current) * 0.3;
-            if(Math.abs(loading.target - loading.current) < 0.005) loading.current = loading.target;
+            // INCREASED SPEED (0.2 factor) for fast load
+            loading.current += (loading.target - loading.current) * 0.2;
+            
+            // Snap to 100% if extremely close
+            if(Math.abs(loading.target - loading.current) < 0.001) loading.current = loading.target;
 
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, logicalWidth, logicalHeight);
             
+            // Title
             ctx.font = "140px 'Luckiest Guy'";
             ctx.fillStyle = '#FFC700'; 
             ctx.textAlign = 'center';
@@ -530,6 +533,7 @@
         function drawHomeScreen(currentTime) {
             drawBackground(); 
 
+            // Back Button Group
             const btn = buttons.back;
             ctx.save();
             ctx.translate(200, 60); 
@@ -543,6 +547,7 @@
             ctx.fillText("Back to Games", 110, 60);
             ctx.restore();
 
+            // Title
             ctx.font = "180px 'Luckiest Guy'";
             ctx.fillStyle = '#87D37C';
             ctx.textAlign = 'center';
@@ -551,6 +556,7 @@
             ctx.strokeText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 240);
             ctx.fillText("SNAKE", logicalWidth / 2, logicalHeight / 2 - 240);
 
+            // Play Button
             const pBtn = buttons.play;
             ctx.save();
             ctx.translate(pBtn.x + pBtn.w/2, pBtn.y + pBtn.h/2);
@@ -566,6 +572,7 @@
         function drawGameOverContent(titleY, panelY, currentTime) {
             drawUIBar();
             
+            // Home Button
             const hBtn = buttons.home;
             const homeCenterX = logicalWidth - 80;
             const homeCenterY = 60;
@@ -599,9 +606,10 @@
             ctx.fillText(`Score: ${score}`, panelX + 60, panelY + 70);
             ctx.fillText(`Best: ${bestTarget}`, panelX + 60, panelY + 150);
 
+            // Replay Button
             if (gameState === 'GAMEOVER') {
                 const rBtn = buttons.replay;
-                rBtn.y = (panelY + panelH + 40); 
+                rBtn.y = (panelY + panelH + 40); // Sync Dynamic Y
                 ctx.save();
                 ctx.translate(rBtn.x + rBtn.w/2, rBtn.y + rBtn.h/2);
                 ctx.scale(rBtn.scale, rBtn.scale);
@@ -798,7 +806,7 @@
                     if (isActive && !btn.clicked) {
                         btn.clicked = true;
                         btn.animTime = performance.now();
-                        playSoundFromPool(clickSoundPool);
+                        playSoundFromPool(clickSoundPool); // USE POOL HERE
                     }
                 }
             }
