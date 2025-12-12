@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dino Run Unlimited - Countdown Edition</title>
+    <title>Dino Run Unlimited - Ultimate</title>
     <style>
-        /* Import Fonts: Fredoka One for UI, Bangers for Countdown */
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
 
@@ -19,7 +18,7 @@
             overflow: hidden;
             touch-action: none;
             -webkit-tap-highlight-color: transparent;
-            user-select: none; /* Prevents text cursor/selection */
+            user-select: none;
             -webkit-user-select: none;
         }
 
@@ -53,7 +52,7 @@
             justify-content: center;
             align-items: center;
             z-index: 100;
-            transition: opacity 0.4s;
+            transition: opacity 0.5s ease-out;
         }
 
         h1 {
@@ -82,7 +81,8 @@
             height: 100%;
             width: 0%;
             background: #ff8800;
-            transition: width 0.1s linear;
+            transition: width 0.2s ease-out; /* Smooth transition */
+            box-shadow: 0 0 10px #ff8800;
         }
         #loading-text {
             color: #888;
@@ -90,7 +90,7 @@
             letter-spacing: 1px;
         }
 
-        /* --- COUNTDOWN STYLE (Requested) --- */
+        /* --- COUNTDOWN --- */
         #countdown {
             position: absolute; 
             top: 50%; 
@@ -103,17 +103,14 @@
             transform: translate(-50%, -50%);
             z-index: 60;
             pointer-events: none;
-            user-select: none;
         }
-
-        /* Using the keyframes exactly as requested, applied via JS class toggling */
         @keyframes countdown-zoom-fade { 
             from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 
             50% { opacity: 1; } 
             to { transform: translate(-50%, -50%) scale(1.2); opacity: 0; } 
         }
 
-        /* --- CONTROLS --- */
+        /* --- MOBILE CONTROLS --- */
         #mobile-controls {
             position: absolute;
             bottom: 20px;
@@ -139,12 +136,13 @@
             color: white;
             user-select: none;
             backdrop-filter: blur(4px);
-            transition: transform 0.1s ease;
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.1s;
         }
 
-        .control-btn:active {
-            transform: scale(0.94);
-            background: rgba(255, 255, 255, 0.4);
+        /* Animation class added via JS */
+        .btn-clicked {
+            transform: scale(0.85) !important;
+            background: rgba(255, 255, 255, 0.5) !important;
         }
 
         #btn-duck { left: 20px; }
@@ -172,12 +170,12 @@
 
 <script>
 /**
- * DINO RUN - ULTIMATE EDITION
- * Features: 
- * - 3-2-1 GO Countdown with Bangers Font & Sound.
- * - Tight Cluster Spawning (4-5 cacti).
- * - Proper Replay Reset.
- * - Separate UI/Control Audio logic.
+ * DINO RUN - ULTIMATE
+ * Fixes:
+ * - True Swipe Logic (Up/Down)
+ * - Smooth Loader
+ * - Back Button Sound
+ * - Mobile Button Animation
  */
 
 const MAIN_HOME_URL = "index.html"; 
@@ -223,7 +221,7 @@ const countdownEl = document.getElementById('countdown');
 
 let assets = {};
 let sounds = {};
-let gameState = "INIT"; // INIT, HOME, COUNTDOWN, PLAY, DYING, GAMEOVER
+let gameState = "INIT"; 
 let score = 0;
 let sessionBest = 0; 
 let speed = CONFIG.startSpeed;
@@ -250,7 +248,7 @@ let ui = { flashOp: 0, textY: -100, boardY: 600, targetBoardY: 150 };
 
 if(isMobile) document.getElementById('mobile-controls').style.display = 'block';
 
-// --- ASSET LOADER ---
+// --- SMOOTH LOADER ---
 async function init() {
     let toLoad = [];
     const add = (k, s) => toLoad.push({k, s});
@@ -267,19 +265,42 @@ async function init() {
     ASSETS_SRC.dead.forEach((s, i)=> add(`dead_${i}`, s));
     ASSETS_SRC.bird.forEach((s, i)=> add(`bird_${i}`, s));
 
-    let loaded = 0;
+    let loadedCount = 0;
+    const total = toLoad.length;
+    
+    // Smooth loader visual tracker
+    let currentVisual = 0;
+    
+    const updateLoader = () => {
+        const target = (loadedCount / total) * 100;
+        // Move visual closer to target
+        if(currentVisual < target) {
+            currentVisual += (target - currentVisual) * 0.2; // Smooth ease
+            if(Math.abs(target - currentVisual) < 0.5) currentVisual = target;
+        }
+        progress.style.width = currentVisual + "%";
+        
+        if(currentVisual < 99) requestAnimationFrame(updateLoader);
+    };
+    updateLoader();
+
     const promise = (item) => new Promise(res => {
         const img = new Image();
         img.src = item.s;
         img.onload = () => {
-            loaded++;
-            progress.style.width = (loaded/toLoad.length * 100) + "%";
+            loadedCount++;
             res({k:item.k, img});
         };
-        img.onerror = () => res({k:item.k, img:null});
+        img.onerror = () => {
+            loadedCount++; // Count even if error to not stuck
+            res({k:item.k, img:null});
+        };
     });
 
     const results = await Promise.all(toLoad.map(promise));
+    
+    // Ensure bar hits 100% before removing
+    progress.style.width = "100%";
     
     assets.idle=[]; assets.run=[]; assets.jump=[]; assets.dead=[]; assets.bird=[];
     results.forEach(({k, img}) => {
@@ -302,16 +323,16 @@ async function init() {
     sounds.click = new Audio(ASSETS_SRC.sndClick);
     sounds.countdown = new Audio(ASSETS_SRC.sndCountdown);
 
+    // Wait slightly to show 100%
     setTimeout(() => {
         loader.style.opacity = 0;
         setTimeout(() => loader.remove(), 500);
         goHome();
         loop();
-    }, 500);
+    }, 400);
 }
 
 function playClick() {
-    // Only play sound if user initiated (not auto)
     if(sounds.click.readyState >= 2) {
         sounds.click.currentTime = 0;
         sounds.click.play().catch(()=>{});
@@ -326,42 +347,31 @@ function goHome() {
     ui.flashOp = 0; ui.textY = -100; ui.boardY = canvas.height + 200;
 }
 
-// --- COUNTDOWN SEQUENCE ---
 function startCountdownSequence() {
-    resetGameData(); // Reset everything first (Dino to start pos, no obstacles)
+    resetGameData(); 
     gameState = "COUNTDOWN";
-    
-    // Stop music if playing
     sounds.bgm.pause();
     sounds.bgm.currentTime = 0;
-
-    // Play Countdown Sound
     sounds.countdown.currentTime = 0;
     sounds.countdown.play().catch(()=>{});
 
     countdownEl.style.display = 'block';
-    
     let step = 3;
     
     const runAnimation = (text) => {
         countdownEl.innerText = text;
-        // Reset CSS animation
         countdownEl.style.animation = 'none';
-        countdownEl.offsetHeight; /* Trigger reflow */
+        countdownEl.offsetHeight; 
         countdownEl.style.animation = 'countdown-zoom-fade 1s ease-in-out';
     };
 
-    // Immediate "3"
     runAnimation("3");
 
-    // Timer Logic
     const interval = setInterval(() => {
         step--;
-        if (step > 0) {
-            runAnimation(step.toString());
-        } else if (step === 0) {
-            runAnimation("GO!");
-        } else {
+        if (step > 0) runAnimation(step.toString());
+        else if (step === 0) runAnimation("GO!");
+        else {
             clearInterval(interval);
             countdownEl.style.display = 'none';
             startGameplay();
@@ -393,29 +403,19 @@ function resetGameData() {
 }
 
 function update() {
-    // --- HOME ---
     if (gameState === "HOME") {
         frames++;
         dino.state = "IDLE";
-        // Static ground render (no update to offset)
     } 
-    
-    // --- COUNTDOWN ---
     else if (gameState === "COUNTDOWN") {
-        // Dino waits at start line
         dino.state = "IDLE"; 
         frames++;
     }
-
-    // --- PLAY ---
     else if (gameState === "PLAY") {
         frames++;
-        score += 0.5; // Score increments
+        score += 0.5;
         
-        // Smooth Speed Ramp
-        if (speed < CONFIG.maxSpeed) {
-            speed += 0.002; 
-        }
+        if (speed < CONFIG.maxSpeed) speed += 0.002; 
         
         groundOffset = (groundOffset + speed) % assets.ground.width;
         
@@ -440,7 +440,6 @@ function update() {
                 dino.vy = CONFIG.jumpForce;
                 dino.state = "JUMP";
                 duckTimer = 0;
-                // No click sound for jump, only Jump sound
                 sounds.jump.currentTime = 0;
                 sounds.jump.play().catch(()=>{});
                 input.up = false;
@@ -456,23 +455,19 @@ function update() {
             } else {
                 inputLockDuck = false;
             }
-
         } else {
             dino.vy += CONFIG.gravity;
             dino.state = "JUMP";
-            if(input.down) dino.vy += 1.5; // Fast fall
+            if(input.down) dino.vy += 1.5; 
         }
 
         manageObstacles();
     }
-
-    // --- DYING ---
     else if (gameState === "DYING") {
         frames++;
         sounds.bgm.pause();
         const groundTop = canvas.height - CONFIG.groundH;
         const floor = groundTop - CONFIG.dinoSize + 10;
-        
         if (dino.y < floor) dino.y += CONFIG.gravity * 2;
         else dino.y = floor;
 
@@ -483,8 +478,6 @@ function update() {
             if (score > sessionBest) sessionBest = score;
         }
     }
-
-    // --- GAMEOVER ---
     else if (gameState === "GAMEOVER") {
         const floor = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10;
         if (dino.y < floor) dino.y += CONFIG.gravity * 2;
@@ -496,43 +489,35 @@ function update() {
 }
 
 function manageObstacles() {
-    // Challenge Gapping Logic
     let safeGap = (42 * speed) + 120;
-    
     if (obstacles.length === 0 || canvas.width - obstacles[obstacles.length-1].x > safeGap) {
         if(Math.random() > 0.1) {
-            
             let type = Math.random() > 0.65 ? "BIRD" : "CACTUS";
             let clusterSize = 1;
 
-            // --- EXTREME CHALLENGE / MEGA CLUSTER LOGIC ---
             if (type === "CACTUS") {
                 let r = Math.random();
                 if (score < 500) clusterSize = 1;
                 else if (score < 1000) clusterSize = (r>0.5) ? 2 : 1;
                 else if (score < 1500) clusterSize = (r>0.5) ? 3 : 2;
                 else if (score < 2000) clusterSize = (r>0.6) ? 4 : 3;
-                else clusterSize = (r>0.75) ? 5 : 4; // Mega Cluster (4 or 5)
+                else clusterSize = (r>0.75) ? 5 : 4; 
             }
 
             const groundTop = canvas.height - CONFIG.groundH;
             let startX = canvas.width;
 
-            // Generate Cluster
             for(let i=0; i<clusterSize; i++) {
                 let obs = { type, x: 0, w:0, h:0, frame:0 };
-                
                 if (type === "CACTUS") {
                     obs.w = 50; obs.h = 60;
                     obs.y = groundTop - obs.h; 
-                    // TIGHT UNIT: 45px spacing creates slight overlap for a solid look
                     obs.x = startX + (i * 45); 
                 } else {
                     obs.w = 50; obs.h = 40;
                     let isHigh = Math.random() > 0.5;
                     if (isHigh) obs.y = groundTop - 85; 
                     else obs.y = groundTop - 50; 
-                    // Birds spaced out more to be fair
                     obs.x = startX + (i * 70); 
                 }
                 obstacles.push(obs);
@@ -553,7 +538,6 @@ function manageObstacles() {
             sounds.die.play().catch(()=>{});
             ui.flashOp = 0.7;
         }
-
         if(o.x < -100) obstacles.splice(i, 1);
     }
 }
@@ -573,16 +557,13 @@ function checkColl(d, o) {
     let oy = o.y + 8;
     let ow = o.w - 16;
     let oh = o.h - 16;
-
     return (dx < ox + ow && dx + dw > ox && dy < oy + oh && dy + dh > oy);
 }
 
 function draw() {
     ctx.clearRect(0,0, canvas.width, canvas.height);
-
     if(assets.bg) ctx.drawImage(assets.bg, 0, 0, canvas.width, canvas.height);
 
-    // GROUND DRAWING
     if(assets.ground) {
         let offsetToUse = (gameState === "DYING" || gameState === "GAMEOVER") ? frozenGroundOffset : groundOffset;
         let x = -offsetToUse;
@@ -613,7 +594,6 @@ function draw() {
         ctx.fillStyle = `rgba(255,255,255,${ui.flashOp})`;
         ctx.fillRect(0,0, canvas.width, canvas.height);
     }
-
     drawUI();
 }
 
@@ -628,7 +608,6 @@ function getScale(btnName) {
 }
 
 function drawUI() {
-    // HOME UI
     if (gameState === "HOME") {
         ctx.fillStyle = "#fff";
         ctx.strokeStyle = "#222";
@@ -658,7 +637,6 @@ function drawUI() {
         ctx.fillText("Back to Games", 70, 52);
     }
 
-    // PLAY UI
     if (gameState === "PLAY" || gameState === "DYING") {
         ctx.fillStyle = "#fff";
         ctx.strokeStyle = "#333";
@@ -669,7 +647,6 @@ function drawUI() {
         ctx.fillText(Math.floor(score), canvas.width/2, 60);
     }
 
-    // GAMEOVER UI
     if (gameState === "GAMEOVER") {
         ctx.save();
         ctx.translate(0, ui.textY);
@@ -775,10 +752,10 @@ function onInteractStart(x, y) {
     const target = checkButtons(x, y);
     if (target) {
         activeBtn = target;
-        playClick(); // Only sound on UI buttons
+        playClick(); // Sound plays immediately here
     } else {
-        // If Play state, this is a Jump tap (No click sound)
-        if (gameState === "PLAY") input.up = true;
+        // Tap to Jump only if NOT swiping (handled in Touchend)
+        if (gameState === "PLAY" && !isMobile) input.up = true;
     }
 }
 
@@ -786,9 +763,12 @@ function onInteractStart(x, y) {
 function onInteractEnd() {
     if (activeBtn) {
         if (activeBtn === 'play') startCountdownSequence();
-        if (activeBtn === 'back') setTimeout(() => window.location.href = MAIN_HOME_URL, 100);
+        if (activeBtn === 'back') {
+            // Delay slightly to ensure sound plays
+            setTimeout(() => window.location.href = MAIN_HOME_URL, 200);
+        }
         if (activeBtn === 'replay') startCountdownSequence(); 
-        if (activeBtn === 'home') setTimeout(() => window.location.href = MAIN_HOME_URL, 100);
+        if (activeBtn === 'home') setTimeout(() => window.location.href = MAIN_HOME_URL, 200);
     }
     activeBtn = null;
     input.up = false;
@@ -809,19 +789,21 @@ canvas.addEventListener('mousedown', e => {
 });
 canvas.addEventListener('mouseup', onInteractEnd);
 
-// --- TOUCH / SWIPE CONTROLS ---
+// --- TRUE TOUCH / SWIPE CONTROLS ---
 canvas.addEventListener('touchstart', e => {
     if(e.target.id === 'gameCanvas') e.preventDefault();
     const p = getXY(e);
     touchStartY = p.y;
+    touchEndY = p.y; // RESET here to prevent stale swipe data
     
-    // Check buttons first
+    // Check UI buttons
     onInteractStart(p.x, p.y);
 }, {passive:false});
 
 canvas.addEventListener('touchmove', e => {
-    if(gameState === "PLAY") e.preventDefault(); // Prevent scroll while playing
-    touchEndY = getXY(e).y;
+    if(gameState === "PLAY") e.preventDefault(); // Lock scroll
+    const p = getXY(e);
+    touchEndY = p.y; // Update constantly
 }, {passive:false});
 
 canvas.addEventListener('touchend', e => {
@@ -830,25 +812,43 @@ canvas.addEventListener('touchend', e => {
     // Swipe Logic
     if (gameState === "PLAY") {
         const dist = touchStartY - touchEndY;
-        // Swipe Threshold
+        // Swipe Threshold > 30px
         if (Math.abs(dist) > 30) {
-            if (dist > 0) input.up = true; // Swipe Up
-            else input.down = true; // Swipe Down
-            // Auto reset inputs shortly after swipe
+            if (dist > 0) input.up = true; // Swipe Up (Drag finger up)
+            else input.down = true; // Swipe Down (Drag finger down)
+            
+            // Reset input after short delay
             setTimeout(() => { input.up=false; input.down=false; }, 200);
+        } else {
+            // It was a Tap, not a swipe
+            if (!activeBtn) input.up = true; // Tap jumps
         }
     }
     onInteractEnd();
 });
 
-// Mobile On-Screen Buttons (No Click Sound)
+// Mobile On-Screen Buttons (Animated via Class)
 if(isMobile) {
     const btnJ = document.getElementById('btn-jump');
     const btnD = document.getElementById('btn-duck');
-    btnJ.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); input.up=true; btnJ.style.transform="scale(0.9)"; });
-    btnJ.addEventListener('touchend', (e)=>{ e.preventDefault(); input.up=false; btnJ.style.transform="scale(1)"; });
-    btnD.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); input.down=true; btnD.style.transform="scale(0.9)"; });
-    btnD.addEventListener('touchend', (e)=>{ e.preventDefault(); input.down=false; btnD.style.transform="scale(1)"; });
+    
+    const handleStart = (btn, action) => {
+        btn.classList.add('btn-clicked');
+        if(action === 'up') input.up = true;
+        if(action === 'down') input.down = true;
+    };
+    
+    const handleEnd = (btn, action) => {
+        btn.classList.remove('btn-clicked');
+        if(action === 'up') input.up = false;
+        if(action === 'down') input.down = false;
+    };
+
+    btnJ.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); handleStart(btnJ, 'up'); });
+    btnJ.addEventListener('touchend', (e)=>{ e.preventDefault(); handleEnd(btnJ, 'up'); });
+    
+    btnD.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); handleStart(btnD, 'down'); });
+    btnD.addEventListener('touchend', (e)=>{ e.preventDefault(); handleEnd(btnD, 'down'); });
 }
 
 // Keyboard
