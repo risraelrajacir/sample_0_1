@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dino Run Unlimited - Ultimate</title>
     <style>
-        /* Import Fonts */
+        /* FONTS */
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
 
@@ -17,7 +17,7 @@
             background-color: #1a1a1a;
             font-family: 'Fredoka One', cursive;
             overflow: hidden;
-            touch-action: none;
+            touch-action: none; /* Prevents browser zooming/scrolling */
             -webkit-tap-highlight-color: transparent;
             user-select: none;
             -webkit-user-select: none;
@@ -42,7 +42,7 @@
             border-radius: 6px;
         }
 
-        /* --- SUPER FAST LOADER --- */
+        /* --- INSTANT LOADER --- */
         #loader {
             position: absolute;
             top: 0; left: 0;
@@ -82,8 +82,7 @@
             height: 100%;
             width: 0%;
             background: #ff8800;
-            /* Fast transition for smooth look */
-            transition: width 0.1s linear; 
+            transition: width 0.1s linear; /* Fast response */
             box-shadow: 0 0 10px #ff8800;
         }
         #loading-text {
@@ -106,6 +105,7 @@
             z-index: 60;
             pointer-events: none;
         }
+        /* CSS Animation for 3-2-1 */
         @keyframes countdown-zoom-fade { 
             from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 
             50% { opacity: 1; } 
@@ -138,14 +138,14 @@
             color: white;
             user-select: none;
             backdrop-filter: blur(4px);
-            /* Fast springy animation */
-            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.1s;
+            /* Instant visual feedback setup */
+            transition: transform 0.05s ease, background 0.05s ease;
         }
 
-        /* Class added via JS for touch feedback */
+        /* Active State for Click Animation */
         .btn-clicked {
-            transform: scale(0.8) !important;
-            background: rgba(255, 255, 255, 0.5) !important;
+            transform: scale(0.85);
+            background: rgba(255, 255, 255, 0.5);
         }
 
         #btn-duck { left: 20px; }
@@ -173,11 +173,10 @@
 
 <script>
 /**
- * DINO RUN - ULTIMATE ADDICTIVE EDITION
- * - Fast Loader
- * - Correct Back Button Sound
- * - Perfect Swipe Controls
- * - Mega Cluster Challenges
+ * DINO RUN - BUG FREE EDITION
+ * - Correct Swipe (Up/Down)
+ * - Instant Loader
+ * - Reliable Back Button Sound
  */
 
 const MAIN_HOME_URL = "index.html"; 
@@ -212,7 +211,7 @@ const CONFIG = {
     jumpForce: -14.5,
     groundH: 80,
     dinoSize: 85,
-    duckDuration: 45
+    duckDuration: 45 // Frames to stay ducked
 };
 
 const canvas = document.getElementById('gameCanvas');
@@ -241,16 +240,17 @@ let inputLockDuck = false;
 let activeBtn = null; 
 let hoverBtn = null;
 
-// Swipe Vars
+// Swipe Variables
 let touchStartY = 0;
 let touchEndY = 0;
+let isSwipeAction = false;
 
 let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 let ui = { flashOp: 0, textY: -100, boardY: 600, targetBoardY: 150 };
 
 if(isMobile) document.getElementById('mobile-controls').style.display = 'block';
 
-// --- FAST SMOOTH LOADER ---
+// --- INITIALIZATION & LOADER ---
 async function init() {
     let toLoad = [];
     const add = (k, s) => toLoad.push({k, s});
@@ -268,37 +268,21 @@ async function init() {
     ASSETS_SRC.bird.forEach((s, i)=> add(`bird_${i}`, s));
 
     let loadedCount = 0;
-    const total = toLoad.length;
-    let visualPercent = 0;
-
-    // Fast Visual Update
-    const updateLoader = () => {
-        // Always move visualPercent towards 100 fast
-        if(visualPercent < 100) {
-            visualPercent += 2; // Increments fast per frame
-            if(visualPercent > (loadedCount/total)*100) visualPercent = (loadedCount/total)*100;
-        }
-        progress.style.width = visualPercent + "%";
-        
-        if(visualPercent < 100 || loadedCount < total) {
-            requestAnimationFrame(updateLoader);
-        } else {
-            // Done
-            setTimeout(() => {
-                loader.style.opacity = 0;
-                setTimeout(() => loader.remove(), 300);
-                goHome();
-                loop();
-            }, 200);
-        }
-    };
-    updateLoader();
-
+    
     const promise = (item) => new Promise(res => {
         const img = new Image();
         img.src = item.s;
-        img.onload = () => { loadedCount++; res({k:item.k, img}); };
-        img.onerror = () => { loadedCount++; res({k:item.k, img:null}); };
+        img.onload = () => {
+            loadedCount++;
+            // DIRECT PROGRESS - No Fake Delay
+            progress.style.width = (loadedCount / toLoad.length * 100) + "%";
+            res({k:item.k, img});
+        };
+        img.onerror = () => {
+            loadedCount++;
+            progress.style.width = (loadedCount / toLoad.length * 100) + "%";
+            res({k:item.k, img:null});
+        };
     });
 
     const results = await Promise.all(toLoad.map(promise));
@@ -313,6 +297,7 @@ async function init() {
         }
     });
 
+    // Initialize Sounds
     sounds.bgm = new Audio(ASSETS_SRC.bgMusic);
     sounds.bgm.loop = true;
     sounds.bgm.volume = 0.5;
@@ -323,10 +308,17 @@ async function init() {
     sounds.die = new Audio(ASSETS_SRC.sndDie);
     sounds.click = new Audio(ASSETS_SRC.sndClick);
     sounds.countdown = new Audio(ASSETS_SRC.sndCountdown);
+
+    // Instant Start
+    setTimeout(() => {
+        loader.style.opacity = 0;
+        setTimeout(() => loader.remove(), 300);
+        goHome();
+        loop();
+    }, 100);
 }
 
 function playClick() {
-    // Attempt to play sound immediately
     if(sounds.click.readyState >= 1) {
         sounds.click.currentTime = 0;
         sounds.click.play().catch(()=>{});
@@ -350,21 +342,22 @@ function startCountdownSequence() {
     sounds.countdown.play().catch(()=>{});
 
     countdownEl.style.display = 'block';
-    let step = 3;
     
-    const runAnimation = (text) => {
-        countdownEl.innerText = text;
+    // Reset animation helper
+    const animateText = (txt) => {
+        countdownEl.innerText = txt;
         countdownEl.style.animation = 'none';
-        countdownEl.offsetHeight; 
+        void countdownEl.offsetWidth; // trigger reflow
         countdownEl.style.animation = 'countdown-zoom-fade 1s ease-in-out';
     };
 
-    runAnimation("3");
+    let step = 3;
+    animateText("3");
 
     const interval = setInterval(() => {
         step--;
-        if (step > 0) runAnimation(step.toString());
-        else if (step === 0) runAnimation("GO!");
+        if (step > 0) animateText(step.toString());
+        else if (step === 0) animateText("GO!");
         else {
             clearInterval(interval);
             countdownEl.style.display = 'none';
@@ -396,33 +389,36 @@ function resetGameData() {
     input.down = false;
 }
 
+// --- MAIN LOOP ---
 function update() {
-    if (gameState === "HOME") {
+    if (gameState === "HOME" || gameState === "COUNTDOWN") {
         frames++;
         dino.state = "IDLE";
     } 
-    else if (gameState === "COUNTDOWN") {
-        dino.state = "IDLE"; 
-        frames++;
-    }
     else if (gameState === "PLAY") {
         frames++;
         score += 0.5;
         
-        // Speed Ramp
+        // Speed Increase
         if (speed < CONFIG.maxSpeed) speed += 0.002; 
         
-        groundOffset = (groundOffset + speed) % assets.ground.width;
+        // Ground Move
+        if(assets.ground) {
+            groundOffset = (groundOffset + speed) % assets.ground.width;
+        }
         
         const groundTop = canvas.height - CONFIG.groundH;
         const floor = groundTop - CONFIG.dinoSize + 10;
 
+        // Physics
         dino.y += dino.vy;
 
+        // Ground Collision
         if (dino.y >= floor) {
             dino.y = floor;
             dino.vy = 0;
 
+            // Duck Logic
             if (duckTimer > 0) {
                 dino.state = "DUCK";
                 duckTimer--;
@@ -431,6 +427,7 @@ function update() {
                 dino.state = "RUN";
             }
 
+            // Jump
             if (input.up) {
                 dino.vy = CONFIG.jumpForce;
                 dino.state = "JUMP";
@@ -439,6 +436,7 @@ function update() {
                 sounds.jump.play().catch(()=>{});
                 input.up = false;
             } 
+            // Duck Trigger
             else if (input.down) {
                 if (!inputLockDuck && duckTimer <= 0) {
                     duckTimer = CONFIG.duckDuration;
@@ -450,10 +448,12 @@ function update() {
             } else {
                 inputLockDuck = false;
             }
+
         } else {
+            // In Air
             dino.vy += CONFIG.gravity;
             dino.state = "JUMP";
-            if(input.down) dino.vy += 1.5; 
+            if(input.down) dino.vy += 1.5; // Fast Fall
         }
 
         manageObstacles();
@@ -463,6 +463,7 @@ function update() {
         sounds.bgm.pause();
         const groundTop = canvas.height - CONFIG.groundH;
         const floor = groundTop - CONFIG.dinoSize + 10;
+        
         if (dino.y < floor) dino.y += CONFIG.gravity * 2;
         else dino.y = floor;
 
@@ -487,12 +488,12 @@ function manageObstacles() {
     let safeGap = (42 * speed) + 120;
     if (obstacles.length === 0 || canvas.width - obstacles[obstacles.length-1].x > safeGap) {
         if(Math.random() > 0.1) {
+            
             let type = Math.random() > 0.65 ? "BIRD" : "CACTUS";
             let clusterSize = 1;
 
             if (type === "CACTUS") {
                 let r = Math.random();
-                // Addictive Progression
                 if (score < 500) clusterSize = 1;
                 else if (score < 1000) clusterSize = (r>0.5) ? 2 : 1;
                 else if (score < 1500) clusterSize = (r>0.5) ? 3 : 2;
@@ -505,6 +506,7 @@ function manageObstacles() {
 
             for(let i=0; i<clusterSize; i++) {
                 let obs = { type, x: 0, w:0, h:0, frame:0 };
+                
                 if (type === "CACTUS") {
                     obs.w = 50; obs.h = 60;
                     obs.y = groundTop - obs.h; 
@@ -534,6 +536,7 @@ function manageObstacles() {
             sounds.die.play().catch(()=>{});
             ui.flashOp = 0.7;
         }
+
         if(o.x < -100) obstacles.splice(i, 1);
     }
 }
@@ -553,19 +556,24 @@ function checkColl(d, o) {
     let oy = o.y + 8;
     let ow = o.w - 16;
     let oh = o.h - 16;
+
     return (dx < ox + ow && dx + dw > ox && dy < oy + oh && dy + dh > oy);
 }
 
 function draw() {
     ctx.clearRect(0,0, canvas.width, canvas.height);
+
     if(assets.bg) ctx.drawImage(assets.bg, 0, 0, canvas.width, canvas.height);
 
-    if(assets.ground) {
+    // GROUND LOOP
+    if(assets.ground && assets.ground.width > 0) {
         let offsetToUse = (gameState === "DYING" || gameState === "GAMEOVER") ? frozenGroundOffset : groundOffset;
         let x = -offsetToUse;
-        while(x < canvas.width) {
+        let safety = 0;
+        while(x < canvas.width && safety < 100) {
             ctx.drawImage(assets.ground, x, canvas.height - CONFIG.groundH, assets.ground.width, CONFIG.groundH);
             x += assets.ground.width;
+            safety++;
         }
     }
 
@@ -590,6 +598,7 @@ function draw() {
         ctx.fillStyle = `rgba(255,255,255,${ui.flashOp})`;
         ctx.fillRect(0,0, canvas.width, canvas.height);
     }
+
     drawUI();
 }
 
@@ -730,7 +739,7 @@ const getXY = (e) => {
     };
 };
 
-// Check UI Button Clicks
+// Hitbox for Buttons
 function checkButtons(x, y) {
     if (gameState === "HOME") {
         if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > 185 && y < 335) return 'play';
@@ -743,23 +752,23 @@ function checkButtons(x, y) {
     return null;
 }
 
-// Interaction Start
+// Global Interaction Handler
 function onInteractStart(x, y) {
     const target = checkButtons(x, y);
     if (target) {
         activeBtn = target;
-        playClick(); // Plays immediately
+        playClick(); // Play immediate sound for UI
     } else {
+        // Tap to Jump (Desktop only, Mobile uses touchEnd/Swipe)
         if (gameState === "PLAY" && !isMobile) input.up = true;
     }
 }
 
-// Interaction End
 function onInteractEnd() {
     if (activeBtn) {
         if (activeBtn === 'play') startCountdownSequence();
         if (activeBtn === 'back') {
-            // FIX: Delay to let sound play
+            // Delay for sound
             setTimeout(() => window.location.href = MAIN_HOME_URL, 300);
         }
         if (activeBtn === 'replay') startCountdownSequence(); 
@@ -769,7 +778,7 @@ function onInteractEnd() {
     input.up = false;
 }
 
-// PC Hover
+// Mouse Events
 canvas.addEventListener('mousemove', e => {
     if(!isMobile) {
         const p = getXY(e);
@@ -777,86 +786,109 @@ canvas.addEventListener('mousemove', e => {
         canvas.style.cursor = hoverBtn ? 'pointer' : 'default';
     }
 });
-
 canvas.addEventListener('mousedown', e => {
     const p = getXY(e);
     onInteractStart(p.x, p.y);
 });
 canvas.addEventListener('mouseup', onInteractEnd);
 
-// --- TRUE TOUCH / SWIPE CONTROLS ---
+// --- FIXED SWIPE LOGIC ---
 canvas.addEventListener('touchstart', e => {
     if(e.target.id === 'gameCanvas') e.preventDefault();
     const p = getXY(e);
     touchStartY = p.y;
-    touchEndY = p.y; 
+    touchEndY = p.y; // RESET start/end to be same
+    isSwipeAction = false;
     
-    // Check UI buttons
-    onInteractStart(p.x, p.y);
+    // Check for UI clicks first
+    const target = checkButtons(p.x, p.y);
+    if (target) {
+        activeBtn = target;
+        playClick();
+    }
 }, {passive:false});
 
 canvas.addEventListener('touchmove', e => {
     if(gameState === "PLAY") e.preventDefault();
     const p = getXY(e);
-    touchEndY = p.y;
+    touchEndY = p.y; // Track finger
 }, {passive:false});
 
 canvas.addEventListener('touchend', e => {
     if(e.target.id === 'gameCanvas') e.preventDefault();
     
-    // Swipe Logic
-    if (gameState === "PLAY") {
-        const dist = touchStartY - touchEndY;
-        // Threshold > 30px to trigger
-        if (Math.abs(dist) > 30) {
-            if (dist > 0) {
-                // SWIPE UP -> JUMP
-                input.up = true;
-            } else {
-                // SWIPE DOWN -> DUCK
-                input.down = true; 
-                // Auto Duck for duration
-                 if (!inputLockDuck && duckTimer <= 0) {
-                    duckTimer = CONFIG.duckDuration;
-                    dino.state = "DUCK";
-                    sounds.duck.currentTime = 0;
-                    sounds.duck.play().catch(()=>{});
-                    inputLockDuck = true;
-                }
+    // Only process swipe/tap if we aren't clicking a UI button
+    if (!activeBtn && gameState === "PLAY") {
+        const diff = touchStartY - touchEndY;
+        const threshold = 40; // Pixels to count as swipe
+
+        if (diff > threshold) {
+            // SWIPE UP -> JUMP
+            input.up = true;
+            isSwipeAction = true;
+        } else if (diff < -threshold) {
+            // SWIPE DOWN -> DUCK
+            // Instant trigger logic
+            if (!inputLockDuck) {
+                duckTimer = CONFIG.duckDuration;
+                dino.state = "DUCK";
+                sounds.duck.currentTime = 0;
+                sounds.duck.play().catch(()=>{});
+                inputLockDuck = true;
             }
-            
-            // Reset input after short delay
-            setTimeout(() => { input.up=false; input.down=false; inputLockDuck=false; }, 200);
+            isSwipeAction = true;
         } else {
-            // TAP -> Jump (if no button hit)
-            if (!activeBtn) input.up = true; 
+            // TAP -> JUMP (if not a swipe)
+            input.up = true;
+            isSwipeAction = false;
         }
+        
+        // Safety reset
+        setTimeout(() => { 
+            input.up = false; 
+            if(isSwipeAction && diff < -threshold) inputLockDuck = false; // unlock duck after swipe
+        }, 150);
     }
+    
     onInteractEnd();
 });
 
-// Mobile On-Screen Buttons (Animated)
+// --- ON SCREEN BUTTONS (Mobile) ---
 if(isMobile) {
     const btnJ = document.getElementById('btn-jump');
     const btnD = document.getElementById('btn-duck');
     
-    const handleStart = (btn, action) => {
-        btn.classList.add('btn-clicked');
-        if(action === 'up') input.up = true;
-        if(action === 'down') input.down = true;
-    };
-    
-    const handleEnd = (btn, action) => {
-        btn.classList.remove('btn-clicked');
-        if(action === 'up') input.up = false;
-        if(action === 'down') input.down = false;
-    };
+    // Helper for CSS Animation
+    const activate = (btn) => btn.classList.add('btn-clicked');
+    const deactivate = (btn) => btn.classList.remove('btn-clicked');
 
-    btnJ.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); handleStart(btnJ, 'up'); });
-    btnJ.addEventListener('touchend', (e)=>{ e.preventDefault(); handleEnd(btnJ, 'up'); });
-    
-    btnD.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); handleStart(btnD, 'down'); });
-    btnD.addEventListener('touchend', (e)=>{ e.preventDefault(); handleEnd(btnD, 'down'); });
+    btnJ.addEventListener('touchstart', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        activate(btnJ);
+        input.up = true;
+    });
+    btnJ.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        deactivate(btnJ);
+        input.up = false;
+    });
+
+    btnD.addEventListener('touchstart', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        activate(btnD);
+        if (!inputLockDuck) {
+            duckTimer = CONFIG.duckDuration;
+            dino.state = "DUCK";
+            sounds.duck.currentTime = 0;
+            sounds.duck.play().catch(()=>{});
+            inputLockDuck = true;
+        }
+    });
+    btnD.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        deactivate(btnD);
+        inputLockDuck = false;
+    });
 }
 
 // Keyboard
@@ -872,6 +904,5 @@ window.addEventListener('keyup', e => {
 init();
 
 </script>
-
 </body>
 </html>
