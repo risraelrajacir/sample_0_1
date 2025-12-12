@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dino Run Unlimited - Ultimate</title>
     <style>
+        /* Import Fonts */
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
 
@@ -41,7 +42,7 @@
             border-radius: 6px;
         }
 
-        /* --- LOADER --- */
+        /* --- SUPER FAST LOADER --- */
         #loader {
             position: absolute;
             top: 0; left: 0;
@@ -52,7 +53,7 @@
             justify-content: center;
             align-items: center;
             z-index: 100;
-            transition: opacity 0.5s ease-out;
+            transition: opacity 0.3s ease-out;
         }
 
         h1 {
@@ -81,7 +82,8 @@
             height: 100%;
             width: 0%;
             background: #ff8800;
-            transition: width 0.2s ease-out; /* Smooth transition */
+            /* Fast transition for smooth look */
+            transition: width 0.1s linear; 
             box-shadow: 0 0 10px #ff8800;
         }
         #loading-text {
@@ -136,12 +138,13 @@
             color: white;
             user-select: none;
             backdrop-filter: blur(4px);
+            /* Fast springy animation */
             transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.1s;
         }
 
-        /* Animation class added via JS */
+        /* Class added via JS for touch feedback */
         .btn-clicked {
-            transform: scale(0.85) !important;
+            transform: scale(0.8) !important;
             background: rgba(255, 255, 255, 0.5) !important;
         }
 
@@ -155,7 +158,7 @@
     <div id="loader">
         <h1>DINO RUN</h1>
         <div id="progress-bar-bg"><div id="progress-fill"></div></div>
-        <div id="loading-text">Loading Assets...</div>
+        <div id="loading-text">Loading...</div>
     </div>
 
     <div id="countdown">3</div>
@@ -170,12 +173,11 @@
 
 <script>
 /**
- * DINO RUN - ULTIMATE
- * Fixes:
- * - True Swipe Logic (Up/Down)
- * - Smooth Loader
- * - Back Button Sound
- * - Mobile Button Animation
+ * DINO RUN - ULTIMATE ADDICTIVE EDITION
+ * - Fast Loader
+ * - Correct Back Button Sound
+ * - Perfect Swipe Controls
+ * - Mega Cluster Challenges
  */
 
 const MAIN_HOME_URL = "index.html"; 
@@ -248,7 +250,7 @@ let ui = { flashOp: 0, textY: -100, boardY: 600, targetBoardY: 150 };
 
 if(isMobile) document.getElementById('mobile-controls').style.display = 'block';
 
-// --- SMOOTH LOADER ---
+// --- FAST SMOOTH LOADER ---
 async function init() {
     let toLoad = [];
     const add = (k, s) => toLoad.push({k, s});
@@ -267,40 +269,39 @@ async function init() {
 
     let loadedCount = 0;
     const total = toLoad.length;
-    
-    // Smooth loader visual tracker
-    let currentVisual = 0;
-    
+    let visualPercent = 0;
+
+    // Fast Visual Update
     const updateLoader = () => {
-        const target = (loadedCount / total) * 100;
-        // Move visual closer to target
-        if(currentVisual < target) {
-            currentVisual += (target - currentVisual) * 0.2; // Smooth ease
-            if(Math.abs(target - currentVisual) < 0.5) currentVisual = target;
+        // Always move visualPercent towards 100 fast
+        if(visualPercent < 100) {
+            visualPercent += 2; // Increments fast per frame
+            if(visualPercent > (loadedCount/total)*100) visualPercent = (loadedCount/total)*100;
         }
-        progress.style.width = currentVisual + "%";
+        progress.style.width = visualPercent + "%";
         
-        if(currentVisual < 99) requestAnimationFrame(updateLoader);
+        if(visualPercent < 100 || loadedCount < total) {
+            requestAnimationFrame(updateLoader);
+        } else {
+            // Done
+            setTimeout(() => {
+                loader.style.opacity = 0;
+                setTimeout(() => loader.remove(), 300);
+                goHome();
+                loop();
+            }, 200);
+        }
     };
     updateLoader();
 
     const promise = (item) => new Promise(res => {
         const img = new Image();
         img.src = item.s;
-        img.onload = () => {
-            loadedCount++;
-            res({k:item.k, img});
-        };
-        img.onerror = () => {
-            loadedCount++; // Count even if error to not stuck
-            res({k:item.k, img:null});
-        };
+        img.onload = () => { loadedCount++; res({k:item.k, img}); };
+        img.onerror = () => { loadedCount++; res({k:item.k, img:null}); };
     });
 
     const results = await Promise.all(toLoad.map(promise));
-    
-    // Ensure bar hits 100% before removing
-    progress.style.width = "100%";
     
     assets.idle=[]; assets.run=[]; assets.jump=[]; assets.dead=[]; assets.bird=[];
     results.forEach(({k, img}) => {
@@ -322,18 +323,11 @@ async function init() {
     sounds.die = new Audio(ASSETS_SRC.sndDie);
     sounds.click = new Audio(ASSETS_SRC.sndClick);
     sounds.countdown = new Audio(ASSETS_SRC.sndCountdown);
-
-    // Wait slightly to show 100%
-    setTimeout(() => {
-        loader.style.opacity = 0;
-        setTimeout(() => loader.remove(), 500);
-        goHome();
-        loop();
-    }, 400);
 }
 
 function playClick() {
-    if(sounds.click.readyState >= 2) {
+    // Attempt to play sound immediately
+    if(sounds.click.readyState >= 1) {
         sounds.click.currentTime = 0;
         sounds.click.play().catch(()=>{});
     }
@@ -415,6 +409,7 @@ function update() {
         frames++;
         score += 0.5;
         
+        // Speed Ramp
         if (speed < CONFIG.maxSpeed) speed += 0.002; 
         
         groundOffset = (groundOffset + speed) % assets.ground.width;
@@ -497,6 +492,7 @@ function manageObstacles() {
 
             if (type === "CACTUS") {
                 let r = Math.random();
+                // Addictive Progression
                 if (score < 500) clusterSize = 1;
                 else if (score < 1000) clusterSize = (r>0.5) ? 2 : 1;
                 else if (score < 1500) clusterSize = (r>0.5) ? 3 : 2;
@@ -752,9 +748,8 @@ function onInteractStart(x, y) {
     const target = checkButtons(x, y);
     if (target) {
         activeBtn = target;
-        playClick(); // Sound plays immediately here
+        playClick(); // Plays immediately
     } else {
-        // Tap to Jump only if NOT swiping (handled in Touchend)
         if (gameState === "PLAY" && !isMobile) input.up = true;
     }
 }
@@ -764,11 +759,11 @@ function onInteractEnd() {
     if (activeBtn) {
         if (activeBtn === 'play') startCountdownSequence();
         if (activeBtn === 'back') {
-            // Delay slightly to ensure sound plays
-            setTimeout(() => window.location.href = MAIN_HOME_URL, 200);
+            // FIX: Delay to let sound play
+            setTimeout(() => window.location.href = MAIN_HOME_URL, 300);
         }
         if (activeBtn === 'replay') startCountdownSequence(); 
-        if (activeBtn === 'home') setTimeout(() => window.location.href = MAIN_HOME_URL, 200);
+        if (activeBtn === 'home') setTimeout(() => window.location.href = MAIN_HOME_URL, 300);
     }
     activeBtn = null;
     input.up = false;
@@ -794,16 +789,16 @@ canvas.addEventListener('touchstart', e => {
     if(e.target.id === 'gameCanvas') e.preventDefault();
     const p = getXY(e);
     touchStartY = p.y;
-    touchEndY = p.y; // RESET here to prevent stale swipe data
+    touchEndY = p.y; 
     
     // Check UI buttons
     onInteractStart(p.x, p.y);
 }, {passive:false});
 
 canvas.addEventListener('touchmove', e => {
-    if(gameState === "PLAY") e.preventDefault(); // Lock scroll
+    if(gameState === "PLAY") e.preventDefault();
     const p = getXY(e);
-    touchEndY = p.y; // Update constantly
+    touchEndY = p.y;
 }, {passive:false});
 
 canvas.addEventListener('touchend', e => {
@@ -812,22 +807,35 @@ canvas.addEventListener('touchend', e => {
     // Swipe Logic
     if (gameState === "PLAY") {
         const dist = touchStartY - touchEndY;
-        // Swipe Threshold > 30px
+        // Threshold > 30px to trigger
         if (Math.abs(dist) > 30) {
-            if (dist > 0) input.up = true; // Swipe Up (Drag finger up)
-            else input.down = true; // Swipe Down (Drag finger down)
+            if (dist > 0) {
+                // SWIPE UP -> JUMP
+                input.up = true;
+            } else {
+                // SWIPE DOWN -> DUCK
+                input.down = true; 
+                // Auto Duck for duration
+                 if (!inputLockDuck && duckTimer <= 0) {
+                    duckTimer = CONFIG.duckDuration;
+                    dino.state = "DUCK";
+                    sounds.duck.currentTime = 0;
+                    sounds.duck.play().catch(()=>{});
+                    inputLockDuck = true;
+                }
+            }
             
             // Reset input after short delay
-            setTimeout(() => { input.up=false; input.down=false; }, 200);
+            setTimeout(() => { input.up=false; input.down=false; inputLockDuck=false; }, 200);
         } else {
-            // It was a Tap, not a swipe
-            if (!activeBtn) input.up = true; // Tap jumps
+            // TAP -> Jump (if no button hit)
+            if (!activeBtn) input.up = true; 
         }
     }
     onInteractEnd();
 });
 
-// Mobile On-Screen Buttons (Animated via Class)
+// Mobile On-Screen Buttons (Animated)
 if(isMobile) {
     const btnJ = document.getElementById('btn-jump');
     const btnD = document.getElementById('btn-duck');
