@@ -3,835 +3,353 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dino Run - Fixed Controls</title>
+    <title>Game Hub TMA</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
+        /* --- 1. RESET & COLORS --- */
+        :root {
+            --header-bg: #0b0033;
+            --app-bg: #000000;
+            --card-bg: #1a1a1a;
+            --share-bg: #2b2b2b;
+            --accent: #6200ea;
+            --success: #00c853;
+            --text-main: #ffffff;
+            --text-sub: #a1a1a1;
+        }
 
-        html, body {
+        * {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #1a1a1a;
-            font-family: 'Fredoka One', cursive;
-            overflow: hidden;
-            /* CRITICAL FIX: Disables browser handling of gestures */
-            touch-action: none; 
-            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
             user-select: none;
             -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
         }
 
-        #game-container {
+        /* PC Background - Dark & Centered */
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden; 
+            background-color: #050505;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- 2. THE APP CONTAINER --- */
+        #app-canvas {
+            /* 
+               MOBILE: Fills the screen.
+               PC: Locked to 360px width and max 740px height. 
+            */
             width: 100%;
             height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-        }
-
-        canvas {
-            display: block;
-            max-width: 100%;
-            max-height: 100%;
-            aspect-ratio: 16/9;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-            background-color: #4AC;
-            border-radius: 6px;
-        }
-
-        /* --- LOADER --- */
-        #loader {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: #1a1a1a;
+            
+            /* STRICT LIMITS FOR PC */
+            max-width: 360px;   /* Standard Mobile Width */
+            max-height: 740px;  /* Standard Mobile Height */
+            
+            background-color: var(--app-bg);
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            position: relative;
+            
+            /* Phone look on PC */
+            box-shadow: 0 0 40px rgba(0,0,0,0.9);
+            
+            /* If screen is shorter than 740px (like mobile), it just fills 100% */
+        }
+
+        /* On larger screens, add rounded corners to look like a phone */
+        @media (min-height: 750px) and (min-width: 400px) {
+            #app-canvas {
+                border-radius: 20px;
+                overflow: hidden; /* Clip content to rounded corners */
+            }
+        }
+
+        /* --- 3. HEADER --- */
+        header {
+            background-color: var(--header-bg);
+            height: 60px;
+            display: flex;
             align-items: center;
-            z-index: 100;
-            transition: opacity 0.3s;
+            justify-content: center;
+            flex-shrink: 0;
+            z-index: 10;
         }
 
-        h1 {
-            margin: 0 0 10px 0;
-            color: #FFD700;
-            font-size: 6vw;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            text-shadow: 4px 4px 0 #000;
-            font-style: italic;
-            cursor: default;
-        }
-        @media (min-width: 800px) { h1 { font-size: 60px; } }
-
-        #progress-bar-bg {
-            width: 60%;
-            max-width: 400px;
-            height: 20px;
-            background: #333;
-            border-radius: 10px;
-            border: 2px solid #555;
-            overflow: hidden;
-            margin-bottom: 10px;
-        }
-        #progress-fill {
-            height: 100%;
-            width: 0%;
-            background: #ff8800;
-            /* Smooth interpolation */
-            transition: width 0.2s linear; 
-            box-shadow: 0 0 10px #ff8800;
-        }
-        #loading-text {
-            color: #888;
-            font-size: 18px;
+        header h1 {
+            color: var(--text-main);
+            font-family: 'Georgia', serif;
+            font-weight: bold;
+            font-size: 24px;
             letter-spacing: 1px;
         }
 
-        /* --- COUNTDOWN --- */
-        #countdown {
-            position: absolute; 
-            top: 50%; 
-            left: 50%;
-            font-family: 'Bangers', cursive; 
-            color: #FFD700;
-            text-shadow: 5px 5px 15px rgba(0,0,0,0.6);
-            display: none; 
-            font-size: 10rem;
-            transform: translate(-50%, -50%);
-            z-index: 60;
+        /* --- 4. MIDDLE CONTENT --- */
+        #main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly; /* Even spacing */
+            align-items: center;
+            padding: 10px 15px; /* Tighter padding for 360px width */
+            width: 100%;
+        }
+
+        /* GAMES GRID */
+        .games-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 2 cols */
+            gap: 12px;
+            width: 100%;
+            /* Keep grid square-ish relative to width */
+            aspect-ratio: 1 / 1; 
+        }
+
+        .game-card {
+            width: 100%;
+            height: 100%;
+            background-color: var(--card-bg);
+            border-radius: 15px;
+            overflow: hidden;
+            border: 2px solid #222;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .game-card:active {
+            transform: scale(0.96);
+            border-color: var(--accent);
+        }
+
+        .game-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
             pointer-events: none;
         }
-        @keyframes countdown-zoom-fade { 
-            from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 
-            50% { opacity: 1; } 
-            to { transform: translate(-50%, -50%) scale(1.2); opacity: 0; } 
+
+        /* SHARE SECTION */
+        .share-box {
+            width: 100%;
+            background-color: var(--share-bg);
+            border-radius: 18px;
+            padding: 15px 12px;
+            text-align: center;
+            margin-top: 10px;
         }
 
-        /* --- MOBILE CONTROLS --- */
-        #mobile-controls {
+        .share-title {
+            color: var(--text-main);
+            font-family: serif;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .share-sub {
+            color: var(--text-sub);
+            font-size: 11px;
+            margin-bottom: 12px;
+        }
+
+        /* Input Row */
+        .input-wrapper {
+            background: #999;
+            border-radius: 10px;
+            height: 40px;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .link-display {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            border: none;
+            padding: 0 85px 0 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #222;
+            outline: none;
+        }
+
+        .action-btn {
             position: absolute;
-            bottom: 20px;
+            right: 0;
+            top: 0;
+            width: 80px;
+            height: 100%;
+            background: var(--accent);
+            color: white;
+            border: none;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        /* --- 5. FOOTER --- */
+        footer {
+            background-color: var(--header-bg);
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        footer p {
+            color: var(--text-main);
+            font-family: serif;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        /* --- 6. GAME OVERLAY --- */
+        #game-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
             left: 0;
             width: 100%;
-            height: 0;
-            display: none;
-            z-index: 50;
+            height: 100%;
+            background: #000;
+            z-index: 999;
         }
-
-        .control-btn {
-            position: absolute;
-            bottom: 10px;
-            width: 90px;
-            height: 90px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.4);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 40px;
-            color: white;
-            user-select: none;
-            backdrop-filter: blur(4px);
-            transition: transform 0.1s ease, background 0.1s ease;
+        
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
         }
-
-        .btn-clicked {
-            transform: scale(0.85);
-            background: rgba(255, 255, 255, 0.5);
-        }
-
-        #btn-duck { left: 20px; }
-        #btn-jump { right: 20px; }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <div id="loader">
-        <h1>DINO RUN</h1>
-        <div id="progress-bar-bg"><div id="progress-fill"></div></div>
-        <div id="loading-text">Loading...</div>
-    </div>
-
-    <div id="countdown">3</div>
-
-    <div id="mobile-controls">
-        <div id="btn-duck" class="control-btn">⬇️</div>
-        <div id="btn-jump" class="control-btn">⬆️</div>
-    </div>
-
-    <canvas id="gameCanvas" width="800" height="450"></canvas>
-</div>
-
-<script>
-/**
- * DINO RUN - FIXED SWIPE EDITION
- * - Fixed Swipe Up (Blocked browser scroll)
- * - Smooth Loader (Visual Interpolation)
- * - Full Mega Cluster & Audio Support
- */
-
-const MAIN_HOME_URL = "index.html"; 
-
-const ASSETS_SRC = {
-    bg: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_bgs/dr_ge_1_as_bgs_1/bg_2.png?raw=true",
-    ground: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_gs/dr_ge_1_as_gs_1/gd_1.png?raw=true",
-    cactus: "https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_os/dr_ge_1_as_os_1/cs_1.png?raw=true",
-    btnPlay: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/py_ne_ui_bn.png?raw=true",
-    btnReplay: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_ui_bs_1/ry_ne_ui_bn.png?raw=true",
-    iconBack: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/aw_bk_in_24dp_000000.png?raw=true",
-    iconHome: "https://github.com/Rajacajustin/gs_1/blob/main/as/as_ui/as_ui_1/as_ui_1_in/he_in_24dp_000000.png?raw=true",
-
-    idle: Array.from({length:10}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_le_${i+1}.png?raw=true`),
-    run: Array.from({length:8}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_rn_${i+1}.png?raw=true`),
-    jump: Array.from({length:12}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_jp_${i+1}.png?raw=true`),
-    dead: Array.from({length:8}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_dr/dr_ge_1_as_dr_1/dr_dd_${i+1}.png?raw=true`),
-    bird: Array.from({length:4}, (_,i)=> `https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_os/dr_ge_1_as_os_1/dr_ge_1_as_os_1_bds_1/be_bd_${i+1}.png?raw=true`),
-    
-    bgMusic: "https://github.com/risraelrajacir/sample_0_1/raw/refs/heads/main/8-bit-background-music-for-arcade-game-come-on-mario-164702.mp3",
-    sndJump: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_sd_es/dr_ge_1_as_sd_es_1/jp_sd_et.mp3",
-    sndDuck: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_sd_es/dr_ge_1_as_sd_es_1/wh_sd_et.mp3",
-    sndDie: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/se_ge_1/se_ge_1_as/se_ge_1_as_sd_es/se_ge_1_as_sd_es_1/ge_or_sd_et_.mp3",
-    sndClick: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/ck_sd_et.mp3",
-    sndCountdown: "https://github.com/Rajacajustin/gs_1/raw/refs/heads/main/as/as_sd_es/as_sd_es_1/st_bp_ctdn_sd_et.mp3"
-};
-
-const CONFIG = {
-    startSpeed: 8.5,     
-    maxSpeed: 24.0,      
-    gravity: 0.75,
-    jumpForce: -14.5,
-    groundH: 80,
-    dinoSize: 85,
-    duckDuration: 45
-};
-
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const loader = document.getElementById('loader');
-const progress = document.getElementById('progress-fill');
-const countdownEl = document.getElementById('countdown');
-
-let assets = {};
-let sounds = {};
-let gameState = "INIT"; 
-let score = 0;
-let sessionBest = 0; 
-let speed = CONFIG.startSpeed;
-let frames = 0;
-
-let dino = { x: 50, y: 0, vy: 0, state: "IDLE", frame: 0 };
-let obstacles = [];
-let groundOffset = 0; 
-let frozenGroundOffset = 0;
-let input = { up: false, down: false };
-let duckTimer = 0;
-let inputLockDuck = false;
-
-let activeBtn = null; 
-let hoverBtn = null;
-let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-let ui = { flashOp: 0, textY: -100, boardY: 600, targetBoardY: 150 };
-
-if(isMobile) document.getElementById('mobile-controls').style.display = 'block';
-
-// --- SMOOTH LOADER ---
-async function init() {
-    let toLoad = [];
-    const add = (k, s) => toLoad.push({k, s});
-    
-    add('bg', ASSETS_SRC.bg); add('ground', ASSETS_SRC.ground);
-    add('cactus', ASSETS_SRC.cactus); add('btnPlay', ASSETS_SRC.btnPlay);
-    add('btnReplay', ASSETS_SRC.btnReplay);
-    add('iconBack', ASSETS_SRC.iconBack);
-    add('iconHome', ASSETS_SRC.iconHome);
-    
-    ASSETS_SRC.idle.forEach((s, i)=> add(`idle_${i}`, s));
-    ASSETS_SRC.run.forEach((s, i)=> add(`run_${i}`, s));
-    ASSETS_SRC.jump.forEach((s, i)=> add(`jump_${i}`, s));
-    ASSETS_SRC.dead.forEach((s, i)=> add(`dead_${i}`, s));
-    ASSETS_SRC.bird.forEach((s, i)=> add(`bird_${i}`, s));
-
-    let loadedCount = 0;
-    
-    // VISUAL LOADER LOOP (Makes it feel fast & smooth)
-    let visualP = 0;
-    const updateLoader = () => {
-        // Automatically animate bar up to 90%
-        if (visualP < 90) visualP += 2;
-        // If real load is done, jump to 100%
-        if (loadedCount >= toLoad.length) visualP = 100;
+    <!-- 360px WIDTH CONTAINER -->
+    <div id="app-canvas">
         
-        progress.style.width = visualP + "%";
-        
-        if (visualP < 100) {
-            requestAnimationFrame(updateLoader);
-        } else {
-            setTimeout(() => {
-                loader.style.opacity = 0;
-                setTimeout(() => loader.remove(), 300);
-                goHome();
-                loop();
-            }, 200);
-        }
-    };
-    updateLoader();
+        <header>
+            <h1>GAMES</h1>
+        </header>
 
-    // REAL ASSET LOADING
-    const promise = (item) => new Promise(res => {
-        const img = new Image();
-        img.src = item.s;
-        img.onload = () => { loadedCount++; res({k:item.k, img}); };
-        img.onerror = () => { loadedCount++; res({k:item.k, img:null}); };
-    });
-
-    const results = await Promise.all(toLoad.map(promise));
-    
-    assets.idle=[]; assets.run=[]; assets.jump=[]; assets.dead=[]; assets.bird=[];
-    results.forEach(({k, img}) => {
-        if(k.includes('_')) {
-            const [type, idx] = k.split('_');
-            assets[type][parseInt(idx)] = img;
-        } else {
-            assets[k] = img;
-        }
-    });
-
-    sounds.bgm = new Audio(ASSETS_SRC.bgMusic);
-    sounds.bgm.loop = true;
-    sounds.bgm.volume = 0.5;
-
-    sounds.jump = new Audio(ASSETS_SRC.sndJump);
-    sounds.duck = new Audio(ASSETS_SRC.sndDuck);
-    sounds.duck.volume = 1.0; 
-    sounds.die = new Audio(ASSETS_SRC.sndDie);
-    sounds.click = new Audio(ASSETS_SRC.sndClick);
-    sounds.countdown = new Audio(ASSETS_SRC.sndCountdown);
-}
-
-function playClick() {
-    if(sounds.click.readyState >= 1) {
-        sounds.click.currentTime = 0;
-        sounds.click.play().catch(()=>{});
-    }
-}
-
-function goHome() {
-    gameState = "HOME";
-    resetGameData();
-    sounds.bgm.pause();
-    sounds.bgm.currentTime = 0;
-    ui.flashOp = 0; ui.textY = -100; ui.boardY = canvas.height + 200;
-}
-
-function startCountdownSequence() {
-    resetGameData(); 
-    gameState = "COUNTDOWN";
-    sounds.bgm.pause();
-    sounds.bgm.currentTime = 0;
-    sounds.countdown.currentTime = 0;
-    sounds.countdown.play().catch(()=>{});
-
-    countdownEl.style.display = 'block';
-    
-    const runAnimation = (text) => {
-        countdownEl.innerText = text;
-        countdownEl.style.animation = 'none';
-        void countdownEl.offsetWidth; // Reflow
-        countdownEl.style.animation = 'countdown-zoom-fade 1s ease-in-out';
-    };
-
-    let step = 3;
-    runAnimation("3");
-
-    const interval = setInterval(() => {
-        step--;
-        if (step > 0) runAnimation(step.toString());
-        else if (step === 0) runAnimation("GO!");
-        else {
-            clearInterval(interval);
-            countdownEl.style.display = 'none';
-            startGameplay();
-        }
-    }, 1000);
-}
-
-function startGameplay() {
-    gameState = "PLAY";
-    sounds.bgm.play().catch(()=>{});
-}
-
-function resetGameData() {
-    dino.y = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10; 
-    dino.vy = 0;
-    dino.state = "RUN"; 
-    obstacles = [];
-    score = 0;
-    speed = CONFIG.startSpeed;
-    frames = 0;
-    groundOffset = 0;
-    frozenGroundOffset = 0;
-    duckTimer = 0;
-    inputLockDuck = false;
-    activeBtn = null;
-    hoverBtn = null;
-    input.up = false;
-    input.down = false;
-}
-
-function update() {
-    if (gameState === "HOME" || gameState === "COUNTDOWN") {
-        frames++;
-        dino.state = "IDLE";
-    } 
-    else if (gameState === "PLAY") {
-        frames++;
-        score += 0.5;
-        
-        if (speed < CONFIG.maxSpeed) speed += 0.002; 
-        if(assets.ground) groundOffset = (groundOffset + speed) % assets.ground.width;
-        
-        const groundTop = canvas.height - CONFIG.groundH;
-        const floor = groundTop - CONFIG.dinoSize + 10;
-
-        dino.y += dino.vy;
-
-        if (dino.y >= floor) {
-            dino.y = floor;
-            dino.vy = 0;
-
-            if (duckTimer > 0) {
-                dino.state = "DUCK";
-                duckTimer--;
-                if(duckTimer <= 0) dino.state = "RUN"; 
-            } else {
-                dino.state = "RUN";
-            }
-
-            if (input.up) {
-                dino.vy = CONFIG.jumpForce;
-                dino.state = "JUMP";
-                duckTimer = 0;
-                sounds.jump.currentTime = 0;
-                sounds.jump.play().catch(()=>{});
-                input.up = false;
-            } 
-            else if (input.down) {
-                if (!inputLockDuck && duckTimer <= 0) {
-                    duckTimer = CONFIG.duckDuration;
-                    dino.state = "DUCK";
-                    sounds.duck.currentTime = 0;
-                    sounds.duck.play().catch(()=>{});
-                    inputLockDuck = true;
-                }
-            } else {
-                inputLockDuck = false;
-            }
-        } else {
-            dino.vy += CONFIG.gravity;
-            dino.state = "JUMP";
-            if(input.down) dino.vy += 1.5; 
-        }
-
-        manageObstacles();
-    }
-    else if (gameState === "DYING") {
-        frames++;
-        sounds.bgm.pause();
-        const groundTop = canvas.height - CONFIG.groundH;
-        const floor = groundTop - CONFIG.dinoSize + 10;
-        
-        if (dino.y < floor) dino.y += CONFIG.gravity * 2;
-        else dino.y = floor;
-
-        if (dino.frame < assets.dead.length - 1) {
-            if (frames % 4 === 0) dino.frame++;
-        } else {
-            gameState = "GAMEOVER";
-            if (score > sessionBest) sessionBest = score;
-        }
-    }
-    else if (gameState === "GAMEOVER") {
-        const floor = canvas.height - CONFIG.groundH - CONFIG.dinoSize + 10;
-        if (dino.y < floor) dino.y += CONFIG.gravity * 2;
-
-        if(ui.flashOp > 0) ui.flashOp -= 0.03;
-        if(ui.textY < 80) ui.textY += (80 - ui.textY) * 0.1;
-        if(ui.boardY > ui.targetBoardY) ui.boardY += (ui.targetBoardY - ui.boardY) * 0.1;
-    }
-}
-
-function manageObstacles() {
-    let safeGap = (42 * speed) + 120;
-    if (obstacles.length === 0 || canvas.width - obstacles[obstacles.length-1].x > safeGap) {
-        if(Math.random() > 0.1) {
+        <div id="main-area">
             
-            let type = Math.random() > 0.65 ? "BIRD" : "CACTUS";
-            let clusterSize = 1;
+            <div class="games-grid">
+                <!-- 1. Racing -->
+                <div class="game-card" onclick="openGame('GAME_1_URL_HERE')">
+                    <img src="https://github.com/Rajacajustin/gs_1/blob/main/rg_ge_1/rg_ge_1_as/rg_ge_1_as_ls/rg_ge_1_as_ls_1/rg_ge_lo_1.png?raw=true" alt="Racing">
+                </div>
+                <!-- 2. Snake -->
+                <div class="game-card" onclick="openGame('GAME_2_URL_HERE')">
+                    <img src="https://github.com/Rajacajustin/gs_1/blob/main/se_ge_1/se_ge_1_as/se_ge_1_as_ls/se_ge_1_as_ls_1/se_ge_lo_1.png?raw=true" alt="Snake">
+                </div>
+                <!-- 3. Flappy -->
+                <div class="game-card" onclick="openGame('GAME_3_URL_HERE')">
+                    <img src="https://github.com/Rajacajustin/gs_1/blob/main/bd_ge_1/bd_ge_1_as/bd_ge_1_as_ls/bd_ge_1_as_ls_1/bd_ge_lo_1.png?raw=true" alt="Flappy">
+                </div>
+                <!-- 4. Dino -->
+                <div class="game-card" onclick="openGame('GAME_4_URL_HERE')">
+                    <img src="https://github.com/Rajacajustin/gs_1/blob/main/dr_ge_1/dr_ge_1_as/dr_ge_1_as_ls/dr_ge_1_as_ls_1/do_rn_ge_lo_1.png?raw=true" alt="Dino">
+                </div>
+            </div>
 
-            if (type === "CACTUS") {
-                let r = Math.random();
-                if (score < 500) clusterSize = 1;
-                else if (score < 1000) clusterSize = (r>0.5) ? 2 : 1;
-                else if (score < 1500) clusterSize = (r>0.5) ? 3 : 2;
-                else if (score < 2000) clusterSize = (r>0.6) ? 4 : 3;
-                else clusterSize = (r>0.75) ? 5 : 4; 
-            }
-
-            const groundTop = canvas.height - CONFIG.groundH;
-            let startX = canvas.width;
-
-            for(let i=0; i<clusterSize; i++) {
-                let obs = { type, x: 0, w:0, h:0, frame:0 };
+            <div class="share-box">
+                <div class="share-title">Share to Your Friends</div>
+                <div class="share-sub">Invite friends and unlock more future games!</div>
                 
-                if (type === "CACTUS") {
-                    obs.w = 50; obs.h = 60;
-                    obs.y = groundTop - obs.h; 
-                    obs.x = startX + (i * 45); 
-                } else {
-                    obs.w = 50; obs.h = 40;
-                    let isHigh = Math.random() > 0.5;
-                    if (isHigh) obs.y = groundTop - 85; 
-                    else obs.y = groundTop - 50; 
-                    obs.x = startX + (i * 70); 
-                }
-                obstacles.push(obs);
+                <div class="input-wrapper">
+                    <!-- BOT LINK HERE -->
+                    <input type="text" class="link-display" value="https://t.me/your_bot?start=123" readonly id="refLink">
+                    
+                    <button class="action-btn" id="copyBtn" onclick="copyLink()">
+                        <span id="btnIcon" style="display: flex;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </span>
+                        <span id="btnText" style="margin-left: 4px;">COPY</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>More Games Coming Soon...</p>
+        </footer>
+
+        <div id="game-overlay">
+            <iframe id="game-frame" src=""></iframe>
+        </div>
+
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.disableVerticalSwipes();
+
+        function openGame(url) {
+            if(url.includes('URL_HERE')) {
+                tg.showAlert("Link not configured.");
+                return;
             }
-        }
-    }
+            document.querySelector('header').style.display = 'none';
+            document.getElementById('main-area').style.display = 'none';
+            document.querySelector('footer').style.display = 'none';
 
-    for (let i = obstacles.length - 1; i >= 0; i--) {
-        let o = obstacles[i];
-        o.x -= speed;
-        if(o.type === "BIRD" && frames % 10 === 0) o.frame++;
-
-        if (checkColl(dino, o)) {
-            gameState = "DYING";
-            dino.state = "DEAD";
-            dino.frame = 0;
-            frozenGroundOffset = groundOffset;
-            sounds.die.play().catch(()=>{});
-            ui.flashOp = 0.7;
-        }
-        if(o.x < -100) obstacles.splice(i, 1);
-    }
-}
-
-function checkColl(d, o) {
-    let dx = d.x + 20;
-    let dy = d.y + 15;
-    let dw = CONFIG.dinoSize - 40;
-    let dh = CONFIG.dinoSize - 25;
-
-    if (d.state === "DUCK") {
-        dh = 35; 
-        dy = d.y + 50; 
-    }
-
-    let ox = o.x + 8;
-    let oy = o.y + 8;
-    let ow = o.w - 16;
-    let oh = o.h - 16;
-    return (dx < ox + ow && dx + dw > ox && dy < oy + oh && dy + dh > oy);
-}
-
-function draw() {
-    ctx.clearRect(0,0, canvas.width, canvas.height);
-    if(assets.bg) ctx.drawImage(assets.bg, 0, 0, canvas.width, canvas.height);
-
-    if(assets.ground) {
-        let offsetToUse = (gameState === "DYING" || gameState === "GAMEOVER") ? frozenGroundOffset : groundOffset;
-        let x = -offsetToUse;
-        while(x < canvas.width) {
-            ctx.drawImage(assets.ground, x, canvas.height - CONFIG.groundH, assets.ground.width, CONFIG.groundH);
-            x += assets.ground.width;
-        }
-    }
-
-    obstacles.forEach(o => {
-        if(o.type === "CACTUS") ctx.drawImage(assets.cactus, o.x, o.y, o.w, o.h);
-        else {
-            let img = assets.bird[o.frame % assets.bird.length];
-            if(img) ctx.drawImage(img, o.x, o.y, o.w, o.h);
-        }
-    });
-
-    let sprite;
-    if(dino.state === "IDLE") sprite = assets.idle[Math.floor(frames/10) % assets.idle.length];
-    else if(dino.state === "DEAD") sprite = (gameState === "GAMEOVER") ? assets.dead[7] : assets.dead[dino.frame % 8];
-    else if(dino.state === "JUMP") sprite = assets.jump[Math.floor(frames/5) % 12];
-    else if(dino.state === "DUCK") sprite = assets.dead[6] || assets.run[0]; 
-    else sprite = assets.run[Math.floor(frames/4) % 8];
-
-    if(sprite) ctx.drawImage(sprite, dino.x, dino.y, CONFIG.dinoSize, CONFIG.dinoSize);
-
-    if(ui.flashOp > 0.01) {
-        ctx.fillStyle = `rgba(255,255,255,${ui.flashOp})`;
-        ctx.fillRect(0,0, canvas.width, canvas.height);
-    }
-    drawUI();
-}
-
-function getScale(btnName) {
-    if (isMobile) {
-        return (activeBtn === btnName) ? 0.94 : 1.0;
-    } else {
-        if (activeBtn === btnName) return 0.94;
-        if (hoverBtn === btnName) return 1.03;
-        return 1.0;
-    }
-}
-
-function drawUI() {
-    if (gameState === "HOME") {
-        ctx.fillStyle = "#fff";
-        ctx.strokeStyle = "#222";
-        ctx.lineWidth = 6;
-        ctx.textAlign = "center";
-        ctx.font = "80px 'Fredoka One'";
-        ctx.strokeText("DINO RUN", canvas.width/2, 160);
-        ctx.fillText("DINO RUN", canvas.width/2, 160);
-
-        if (assets.btnPlay) {
-            const scale = getScale('play');
-            const w = 150 * scale;
-            const h = 150 * scale;
-            ctx.drawImage(assets.btnPlay, canvas.width/2 - w/2, 260 - h/2, w, h);
+            const overlay = document.getElementById('game-overlay');
+            const frame = document.getElementById('game-frame');
+            frame.src = url;
+            overlay.style.display = 'block';
+            tg.BackButton.show();
         }
 
-        const scaleB = getScale('back');
-        ctx.fillStyle = "rgba(255,255,255,0.9)";
-        ctx.beginPath();
-        ctx.roundRect(20, 20, 220 * scaleB, 50 * scaleB, 25);
-        ctx.fill();
-        if(assets.iconBack) ctx.drawImage(assets.iconBack, 30, 30, 30 * scaleB, 30 * scaleB);
-        ctx.fillStyle = "#333";
-        ctx.textAlign = "left";
-        ctx.font = (20 * scaleB) + "px 'Fredoka One'";
-        ctx.fillText("Back to Games", 70, 52);
-    }
-
-    if (gameState === "PLAY" || gameState === "DYING") {
-        ctx.fillStyle = "#fff";
-        ctx.strokeStyle = "#333";
-        ctx.lineWidth = 4;
-        ctx.font = "40px 'Fredoka One'";
-        ctx.textAlign = "center";
-        ctx.strokeText(Math.floor(score), canvas.width/2, 60);
-        ctx.fillText(Math.floor(score), canvas.width/2, 60);
-    }
-
-    if (gameState === "GAMEOVER") {
-        ctx.save();
-        ctx.translate(0, ui.textY);
-        ctx.font = "60px 'Fredoka One'";
-        ctx.fillStyle = "#ff6f00";
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 5;
-        ctx.textAlign = "center";
-        ctx.strokeText("GAME OVER", canvas.width/2, 0);
-        ctx.fillText("GAME OVER", canvas.width/2, 0);
-        ctx.restore();
-
-        ctx.save();
-        ctx.translate(0, ui.boardY);
-        const pW = 320, pH = 170;
-        const pX = canvas.width/2 - pW/2, pY = 0;
-
-        ctx.fillStyle = "#ffe0b2";
-        ctx.strokeStyle = "#5d4037";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.roundRect(pX, pY, pW, pH, 15);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = "#e65100";
-        ctx.font = "24px 'Fredoka One'";
-        ctx.textAlign = "right";
-        ctx.fillText("SCORE", pX+290, pY+45);
-        ctx.fillText("BEST", pX+290, pY+105);
-
-        ctx.fillStyle = "#333";
-        ctx.font = "35px 'Fredoka One'";
-        let displayBest = Math.floor(score) + 50; 
-        if (score > sessionBest && sessionBest > 0) displayBest = score; 
-
-        ctx.fillText(Math.floor(score), pX+290, pY+80);
-        ctx.fillText(displayBest, pX+290, pY+140);
-        
-        ctx.beginPath();
-        ctx.arc(pX+70, pY+85, 40, 0, Math.PI*2);
-        ctx.fillStyle = score > 1500 ? "#ffca28" : (score > 500 ? "#cfd8dc" : "#a1887f"); 
-        ctx.fill();
-        ctx.strokeStyle = "#333";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.restore();
-
-        if(assets.btnReplay) {
-            const scale = getScale('replay');
-            const w = 150 * scale;
-            const h = 150 * scale;
-            ctx.drawImage(assets.btnReplay, canvas.width/2 - w/2, (ui.boardY + 230) - h/2, w, h);
+        function closeGame() {
+            const overlay = document.getElementById('game-overlay');
+            const frame = document.getElementById('game-frame');
+            overlay.style.display = 'none';
+            frame.src = '';
+            
+            document.querySelector('header').style.display = 'flex';
+            document.getElementById('main-area').style.display = 'flex';
+            document.querySelector('footer').style.display = 'flex';
+            tg.BackButton.hide();
         }
 
-        const scaleH = getScale('home');
-        const hSize = 50 * scaleH;
-        const hX = canvas.width - 20 - 50 + (50-hSize)/2; 
-        const hY = 20 + (50-hSize)/2;
-        
-        ctx.fillStyle = "rgba(255,255,255,0.9)";
-        ctx.beginPath();
-        ctx.roundRect(hX, hY, hSize, hSize, 25);
-        ctx.fill();
-        if(assets.iconHome) ctx.drawImage(assets.iconHome, hX + 10, hY + 10, 30 * scaleH, 30 * scaleH);
-    }
-}
+        tg.BackButton.onClick(closeGame);
 
-// --- INPUT HANDLERS ---
-function loop() {
-    update();
-    draw();
-    requestAnimationFrame(loop);
-}
+        function copyLink() {
+            const copyText = document.getElementById("refLink");
+            const btn = document.getElementById("copyBtn");
+            const btnText = document.getElementById("btnText");
+            const btnIcon = document.getElementById("btnIcon");
 
-const getXY = (e) => {
-    let cx = e.touches ? e.touches[0].clientX : e.clientX;
-    let cy = e.touches ? e.touches[0].clientY : e.clientY;
-    const rect = canvas.getBoundingClientRect();
-    return {
-        x: (cx - rect.left) * (canvas.width / rect.width),
-        y: (cy - rect.top) * (canvas.height / rect.height)
-    };
-};
-
-function checkButtons(x, y) {
-    if (gameState === "HOME") {
-        if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > 185 && y < 335) return 'play';
-        if (x >= 20 && x <= 240 && y >= 20 && y <= 70) return 'back';
-    }
-    else if (gameState === "GAMEOVER") {
-        if (x > canvas.width/2 - 75 && x < canvas.width/2 + 75 && y > (ui.boardY + 230) - 75 && y < (ui.boardY + 230) + 75) return 'replay';
-        if (x >= canvas.width - 70 && x <= canvas.width - 20 && y >= 20 && y <= 70) return 'home';
-    }
-    return null;
-}
-
-function onInteractStart(x, y) {
-    const target = checkButtons(x, y);
-    if (target) {
-        activeBtn = target;
-        playClick(); 
-    } else {
-        if (gameState === "PLAY" && !isMobile) input.up = true;
-    }
-}
-
-function onInteractEnd() {
-    if (activeBtn) {
-        if (activeBtn === 'play') startCountdownSequence();
-        if (activeBtn === 'back') setTimeout(() => window.location.href = MAIN_HOME_URL, 300);
-        if (activeBtn === 'replay') startCountdownSequence(); 
-        if (activeBtn === 'home') setTimeout(() => window.location.href = MAIN_HOME_URL, 300);
-    }
-    activeBtn = null;
-    input.up = false;
-}
-
-canvas.addEventListener('mousemove', e => {
-    if(!isMobile) {
-        const p = getXY(e);
-        hoverBtn = checkButtons(p.x, p.y);
-        canvas.style.cursor = hoverBtn ? 'pointer' : 'default';
-    }
-});
-canvas.addEventListener('mousedown', e => {
-    const p = getXY(e);
-    onInteractStart(p.x, p.y);
-});
-canvas.addEventListener('mouseup', onInteractEnd);
-
-// --- FIXED SWIPE LOGIC ---
-let touchStartY = 0;
-let touchEndY = 0;
-
-// 1. Capture Start Y
-canvas.addEventListener('touchstart', e => {
-    if(e.target.id === 'gameCanvas') e.preventDefault();
-    touchStartY = e.changedTouches[0].clientY;
-    
-    // Check buttons
-    const p = getXY(e);
-    const target = checkButtons(p.x, p.y);
-    if(target) { activeBtn = target; playClick(); }
-}, {passive:false});
-
-// 2. PREVENT SCROLLING (Crucial for Swipe Up)
-canvas.addEventListener('touchmove', e => {
-    e.preventDefault(); 
-}, {passive:false});
-
-// 3. Capture End Y & Calculate
-canvas.addEventListener('touchend', e => {
-    if(e.target.id === 'gameCanvas') e.preventDefault();
-    touchEndY = e.changedTouches[0].clientY;
-    
-    // Only swipe if no button active
-    if (!activeBtn && gameState === "PLAY") {
-        // SWIPE UP: Start > End (Finger moves up, Y decreases)
-        // Diff = Start - End. If Positive -> UP.
-        let diff = touchStartY - touchEndY;
-        
-        if (diff > 40) {
-            // SWIPE UP -> JUMP
-            input.up = true;
-            setTimeout(() => input.up = false, 150);
-        } 
-        else if (diff < -40) {
-            // SWIPE DOWN -> DUCK
-            input.down = true; 
-        } 
-        else {
-            // TAP -> JUMP
-            input.up = true;
-            setTimeout(() => input.up = false, 150);
+            navigator.clipboard.writeText(copyText.value).then(() => {
+                btn.style.background = "var(--success)";
+                btnText.innerText = "COPIED";
+                btnIcon.style.display = "none";
+                setTimeout(() => {
+                    btn.style.background = "var(--accent)";
+                    btnText.innerText = "COPY";
+                    btnIcon.style.display = "flex";
+                }, 2000);
+            });
         }
-    }
-    onInteractEnd();
-}, {passive:false});
-
-
-if(isMobile) {
-    const btnJ = document.getElementById('btn-jump');
-    const btnD = document.getElementById('btn-duck');
-    const set = (b, s) => s ? b.classList.add('btn-clicked') : b.classList.remove('btn-clicked');
-    
-    btnJ.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); set(btnJ,1); input.up=true; });
-    btnJ.addEventListener('touchend', (e)=>{ e.preventDefault(); set(btnJ,0); input.up=false; });
-    
-    btnD.addEventListener('touchstart', (e)=>{ e.preventDefault(); e.stopPropagation(); set(btnD,1); input.down=true; });
-    btnD.addEventListener('touchend', (e)=>{ e.preventDefault(); set(btnD,0); });
-}
-
-window.addEventListener('keydown', e => {
-    if(e.code === 'ArrowUp' || e.code === 'Space') input.up = true;
-    if(e.code === 'ArrowDown') input.down = true;
-});
-window.addEventListener('keyup', e => {
-    if(e.code === 'ArrowDown') input.down = false;
-    if(e.code === 'ArrowUp') input.up = false;
-});
-
-init();
-
-</script>
+    </script>
 </body>
 </html>
