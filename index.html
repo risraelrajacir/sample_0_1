@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dino Run - Swipe Fixed</title>
+    <title>Dino Run - Ultimate Swipe Fix</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
@@ -15,10 +15,11 @@
             height: 100%;
             background-color: #1a1a1a;
             font-family: 'Fredoka One', cursive;
-            overflow: hidden;
+            overflow: hidden; /* Prevents scrollbars */
+            touch-action: none; /* Disables browser gestures */
+            -webkit-tap-highlight-color: transparent;
             user-select: none;
             -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
         }
 
         #game-container {
@@ -38,11 +39,9 @@
             box-shadow: 0 0 50px rgba(0,0,0,0.8);
             background-color: #4AC;
             border-radius: 6px;
-            /* CRITICAL FIX: Forces browser to ignore default swipe gestures on the game */
-            touch-action: none; 
         }
 
-        /* --- SMOOTH FAST LOADER --- */
+        /* --- LOADER --- */
         #loader {
             position: absolute;
             top: 0; left: 0;
@@ -53,7 +52,7 @@
             justify-content: center;
             align-items: center;
             z-index: 100;
-            transition: opacity 0.3s ease-out;
+            transition: opacity 0.4s ease-out;
         }
 
         h1 {
@@ -82,7 +81,6 @@
             height: 100%;
             width: 0%;
             background: #ff8800;
-            /* Constant smooth animation */
             transition: width 0.1s linear; 
             box-shadow: 0 0 10px #ff8800;
         }
@@ -171,11 +169,11 @@
 
 <script>
 /**
- * DINO RUN - SWIPE CONTROLS FIXED
- * Fixes:
- * 1. Used screenY instead of clientY for absolute touch tracking.
- * 2. Added forceful preventDefault on touchmove to stop scrolling.
- * 3. Smooth "Fake" Loader that never gets stuck.
+ * DINO RUN - GUARANTEED SWIPE FIX
+ * 
+ * 1. Global Touch Listeners: We attach touch events to 'document' to prevent misses.
+ * 2. Scroll Blocking: We use passive: false to kill browser scrolling.
+ * 3. Simple Math: StartY - EndY. Positive = Up, Negative = Down.
  */
 
 const MAIN_HOME_URL = "index.html"; 
@@ -261,23 +259,23 @@ async function init() {
 
     let loadedCount = 0;
     
-    // VISUAL ANIMATION LOOP (Ensures loader is always smooth and fast)
+    // VISUAL ANIMATION
     let visualProgress = 0;
     const animateLoader = () => {
-        // Automatically increment visual bar
-        if(visualProgress < 100) visualProgress += 3;
+        // Fast fill
+        if (visualProgress < 100) visualProgress += 4;
+        if (visualProgress > 100) visualProgress = 100;
         
-        // If assets aren't done, clamp it at 95%
-        if(visualProgress > 95 && loadedCount < toLoad.length) visualProgress = 95;
-        // If assets ARE done, let it hit 100%
-        if(loadedCount === toLoad.length) visualProgress = 100;
+        // Wait for real load only at the very end
+        if (visualProgress === 100 && loadedCount < toLoad.length) {
+            visualProgress = 99; // Hold at 99
+        }
 
         progress.style.width = visualProgress + "%";
         
         if (visualProgress < 100 || loadedCount < toLoad.length) {
             requestAnimationFrame(animateLoader);
         } else {
-            // Done
             setTimeout(() => {
                 loader.style.opacity = 0;
                 setTimeout(() => loader.remove(), 400);
@@ -418,7 +416,6 @@ function update() {
                 dino.state = "RUN";
             }
 
-            // Jump handling
             if (input.up) {
                 dino.vy = CONFIG.jumpForce;
                 dino.state = "JUMP";
@@ -427,7 +424,6 @@ function update() {
                 sounds.jump.play().catch(()=>{});
                 input.up = false;
             } 
-            // Duck handling
             else if (input.down) {
                 if (!inputLockDuck && duckTimer <= 0) {
                     duckTimer = CONFIG.duckDuration;
@@ -764,55 +760,55 @@ canvas.addEventListener('mousedown', e => {
 });
 canvas.addEventListener('mouseup', onInteractEnd);
 
-// --- FIXED SWIPE LOGIC ---
-let touchStartX = 0;
+// --- GUARANTEED GLOBAL TOUCH SWIPE CONTROLS ---
 let touchStartY = 0;
 
-canvas.addEventListener('touchstart', e => {
-    // 1. Force Browser to ignore scrolling
+// 1. LISTEN ON DOCUMENT: Catch all touches anywhere on screen
+document.addEventListener('touchstart', (e) => {
+    // We only care about single finger swipes
+    if (e.touches.length === 1) {
+        touchStartY = e.touches[0].clientY;
+        
+        // Also check if they hit a button on canvas
+        const p = getXY(e);
+        const target = checkButtons(p.x, p.y);
+        if(target && e.target.id === 'gameCanvas') {
+            activeBtn = target;
+            playClick();
+        }
+    }
+}, { passive: false });
+
+// 2. FORCEFULLY BLOCK SCROLLING
+document.addEventListener('touchmove', (e) => {
     e.preventDefault(); 
-    
-    // 2. Use Screen Coordinates (Absolute)
-    touchStartX = e.changedTouches[0].screenX;
-    touchStartY = e.changedTouches[0].screenY;
-    
-    // Check buttons
-    const p = getXY(e);
-    const target = checkButtons(p.x, p.y);
-    if(target) { activeBtn = target; playClick(); }
-}, {passive:false});
+}, { passive: false });
 
-canvas.addEventListener('touchmove', e => {
-    e.preventDefault(); // Stop Scroll
-}, {passive:false});
-
-canvas.addEventListener('touchend', e => {
-    e.preventDefault(); 
-    let touchEndX = e.changedTouches[0].screenX;
-    let touchEndY = e.changedTouches[0].screenY;
-    
-    if (!activeBtn && gameState === "PLAY") {
-        let dy = touchStartY - touchEndY; // Positive = Up
-        let dx = touchStartX - touchEndX;
-
-        // Ensure it's a vertical swipe, not horizontal
-        if(Math.abs(dy) > Math.abs(dx)) {
-            if (dy > 30) { // SWIPE UP
-                input.up = true;
-            } 
-            else if (dy < -30) { // SWIPE DOWN
-                input.down = true; 
-            } 
-            else { // TAP
-                input.up = true;
-            }
-        } else {
-            // Horizontal tap/swipe also jumps
-            if(Math.abs(dx) < 10) input.up = true;
+// 3. DETECT SWIPE
+document.addEventListener('touchend', (e) => {
+    if (!activeBtn && gameState === "PLAY" && e.changedTouches.length > 0) {
+        let touchEndY = e.changedTouches[0].clientY;
+        let diff = touchStartY - touchEndY;
+        
+        // Threshold: 30 pixels
+        if (diff > 30) {
+            // SWIPE UP -> JUMP
+            input.up = true;
+            setTimeout(() => input.up = false, 150); // Reset jump trigger
+        } 
+        else if (diff < -30) {
+            // SWIPE DOWN -> DUCK
+            input.down = true; 
+            // Duck is held by game logic timer
+        }
+        else {
+            // TAP -> JUMP
+            input.up = true;
+            setTimeout(() => input.up = false, 150);
         }
     }
     onInteractEnd();
-}, {passive:false});
+}, { passive: false });
 
 
 if(isMobile) {
